@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Редактировать результат</h2>
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="mb-3">
+      {{ form.athlete.label_tag }}
+      {{ form.athlete }}
+      {% for err in form.athlete.errors %}
+        <div class="text-danger">{{ err }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.discipline.label_tag }}
+      {{ form.discipline }}
+      {% for err in form.discipline.errors %}
+        <div class="text-danger">{{ err }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.result.label_tag }}
+      {# Рендерим поле вручную, чтобы применить форматирование #}
+      {% if form.instance.discipline.code == 'treadmill' %}
+        <input
+          type="number"
+          name="{{ form.result.name }}"
+          value="{{ form.instance.result|floatformat:2 }}"
+          step="0.01"
+          class="form-control"
+        />
+      {% else %}
+        <input
+          type="number"
+          name="{{ form.result.name }}"
+          value="{{ form.instance.result|floatformat:0 }}"
+          step="1"
+          class="form-control"
+        />
+      {% endif %}
+      {% for err in form.result.errors %}
+        <div class="text-danger">{{ err }}</div>
+      {% endfor %}
+    </div>
+
+    <button type="submit" class="btn btn-primary">Сохранить</button>
+    <a href="{% url 'event_detail' event.id %}" class="btn btn-secondary ms-2">Отменить</a>
+  </form>
+</div>
+{% endblock %}

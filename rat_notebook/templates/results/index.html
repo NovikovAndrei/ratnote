@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+  <h1>Калькулятор очков многоборья</h1>
+  <div class="row">
+    <!-- Форма добавления спортсмена -->
+    <div class="col-md-6">
+      <h3>Добавить спортсмена</h3>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="add_athlete" value="1">
+        <div class="mb-3">
+          {{ athlete_form.name.label_tag }}
+          {{ athlete_form.name }}
+          {{ athlete_form.name.errors }}
+        </div>
+        <div class="mb-3">
+          {{ athlete_form.category.label_tag }}
+          {{ athlete_form.category }}
+          {{ athlete_form.category.errors }}
+        </div>
+        <button type="submit" class="btn btn-primary">Добавить спортсмена</button>
+      </form>
+    </div>
+
+    <!-- Форма добавления результата -->
+    <div class="col-md-6">
+      <h3>Добавить результат</h3>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="add_result" value="1">
+        <div class="mb-3">
+          {{ result_form.athlete.label_tag }}
+          {{ result_form.athlete }}
+          {{ result_form.athlete.errors }}
+        </div>
+        <div class="mb-3">
+          {{ result_form.discipline.label_tag }}
+          {{ result_form.discipline }}
+          {{ result_form.discipline.errors }}
+        </div>
+        <div class="mb-3">
+          {{ result_form.result.label_tag }}
+          {{ result_form.result }}
+          {{ result_form.result.errors }}
+        </div>
+        <button type="submit" class="btn btn-primary">Добавить результат</button>
+      </form>
+    </div>
+  </div>
+
+  <hr>
+  <h2>Рейтинг</h2>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Место</th>
+        <th>Спортсмен</th>
+        <th>Категория</th>
+        <th>Очки</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for athlete in ranking %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ athlete.name }}</td>
+        <td>{{ athlete.category }}</td>
+        <td>{{ athlete.total_points }}</td>
+        <td></td>
+      </tr>
+      <tr class="table-secondary">
+        <td colspan="5">
+          <strong>Детализация:</strong>
+          <table class="table table-sm mt-2 mb-0">
+            <thead>
+              <tr>
+                <th>Дисциплина</th>
+                <th>Результат</th>
+                <th>Очки</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for res in athlete.results.all %}
+              <tr>
+                <td>{{ res.get_discipline_display }}</td>
+                <td>{{ res.result }}</td>
+                <td>{{ res.points }}</td>
+                <td>
+                  <a href="{% url 'edit_result' res.id %}" class="btn btn-sm btn-outline-secondary">Редактировать</a>
+                  <a href="{% url 'delete_result' res.id %}" class="btn btn-sm btn-outline-danger">Удалить</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5">Нет данных</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

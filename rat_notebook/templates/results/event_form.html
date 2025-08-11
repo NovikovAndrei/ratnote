@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+  <h1>{{ title }}</h1>
+  <form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger">
+        {% for err in form.non_field_errors %}
+          <div>{{ err }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <div class="mb-3">
+      {{ form.name.label_tag }} {{ form.name }}
+      {% for err in form.name.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.date.label_tag }} {{ form.date }}
+      {% for err in form.date.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.disciplines.label_tag }} {{ form.disciplines }}
+      {% for err in form.disciplines.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
+    </div>
+    <button type="submit" class="btn btn-primary">Сохранить</button>
+    <a href="{% url 'event_list' %}" class="btn btn-secondary ms-2">Отмена</a>
+  </form>
+</div>
+{% endblock %}

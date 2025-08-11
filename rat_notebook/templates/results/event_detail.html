@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+  <a href="{% url 'event_list' %}" class="btn btn-outline-light mb-3">← Все события</a>
+  <h1 class="mb-4">{{ event.name }} — {{ event.date }}</h1>
+
+  <div class="row g-4 mb-5">
+    <!-- Форма добавления спортсмена -->
+    <div class="col-md-6">
+      <div class="card p-4">
+        <h3 class="mb-4">Добавить спортсмена</h3>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="add_athlete" value="1">
+          {{ athlete_form.non_field_errors }}
+          <div class="mb-3">
+            {{ athlete_form.name.label_tag }} {{ athlete_form.name }}
+            {% for err in athlete_form.name.errors %}
+              <div class="text-danger">{{ err }}</div>
+            {% endfor %}
+          </div>
+          <div class="mb-3">
+            {{ athlete_form.growth_category.label_tag }} {{ athlete_form.growth_category }}
+            {% for err in athlete_form.growth_category.errors %}
+              <div class="text-danger">{{ err }}</div>
+            {% endfor %}
+          </div>
+          <div class="form-check mb-3">
+            {{ athlete_form.is_champion }} {{ athlete_form.is_champion.label_tag }}
+            {% for err in athlete_form.is_champion.errors %}
+              <div class="text-danger">{{ err }}</div>
+            {% endfor %}
+          </div>
+          <button class="btn btn-primary">Добавить спортсмена</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Форма добавления результата -->
+    <div class="col-md-6">
+      <div class="card p-4">
+        <h3 class="mb-4">Добавить результат</h3>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="add_result" value="1">
+
+          {% if result_form.non_field_errors %}
+            <div class="alert alert-danger">
+              {% for e in result_form.non_field_errors %}
+                <div>{{ e }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          <div class="mb-3">
+            <label for="athleteSelect" class="form-label">{{ result_form.athlete.label }}</label>
+            <select id="athleteSelect"
+                    name="{{ result_form.athlete.html_name }}"
+                    class="form-select">
+              <option value="">---------</option>
+              {% for ath in result_form.fields.athlete.queryset %}
+                <option value="{{ ath.pk }}"
+                        data-category="{{ ath.growth_category }}"
+                        data-champion="{{ ath.is_champion|yesno:'true,false' }}">
+                  {{ ath.name }} ({{ ath.growth_category }}){% if ath.is_champion %} 🏆{% endif %}
+                </option>
+              {% endfor %}
+            </select>
+            {% for err in result_form.athlete.errors %}
+              <div class="text-danger">{{ err }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="mb-3">
+            {{ result_form.discipline.label_tag }} {{ result_form.discipline }}
+            {% for err in result_form.discipline.errors %}
+              <div class="text-danger">{{ err }}</div>
+            {% endfor %}
+          </div>
+          <div class="mb-3">
+            {{ result_form.result.label_tag }} {{ result_form.result }}
+            {% for err in result_form.result.errors %}
+              <div class="text-danger">{{ err }}</div>
+            {% endfor %}
+          </div>
+          <button class="btn btn-primary">Добавить результат</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Вкладки по категориям -->
+  <ul class="nav nav-tabs" id="catTabs" role="tablist">
+    {% for cat_code, data in category_rankings.items %}
+      {% with label=data.0 %}
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link {% if active_group == cat_code %}active{% endif %}"
+          id="tab-{{ cat_code }}"
+          data-bs-toggle="tab"
+          data-bs-target="#pane-{{ cat_code }}"
+          type="button"
+          role="tab"
+          aria-controls="pane-{{ cat_code }}"
+          aria-selected="{% if active_group == cat_code %}true{% else %}false{% endif %}"
+        >{{ label }}</button>
+      </li>
+      {% endwith %}
+    {% endfor %}
+  </ul>
+
+  <div class="tab-content mt-3" id="catTabsContent">
+    {% for cat_code, data in category_rankings.items %}
+      {% with label=data.0 athletes_list=data.1 %}
+      <div
+        class="tab-pane fade {% if active_group == cat_code %}show active{% endif %}"
+        id="pane-{{ cat_code }}"
+        role="tabpanel"
+        aria-labelledby="tab-{{ cat_code }}"
+      >
+        <div class="card p-3 mb-4">
+          <table class="table table-striped mb-0">
+            <thead>
+              <tr>
+                <th>Место</th>
+                <th>Спортсмен</th>
+                <th>Очки</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for athlete in athletes_list %}
+                <tr>
+                  <td>{{ forloop.counter }}</td>
+                  <td>{{ athlete.name }}</td>
+                  <td>{{ athlete.total_points|floatformat:0 }}</td>
+                  <td></td>
+                </tr>
+                <tr class="table-secondary">
+                  <td colspan="4">
+                    <strong>Детализация результатов:</strong>
+                    <table class="table table-sm mt-2 mb-0">
+                      <thead>
+                        <tr>
+                          <th>Дисциплина</th>
+                          <th>Результат</th>
+                          <th>Очки</th>
+                          <th>Действия</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for res in athlete.results.all %}
+                          <tr>
+                            <td>{{ res.discipline.verbose }}</td>
+                            <td>
+                              {% if res.discipline.code == 'treadmill' %}
+                                {{ res.result|floatformat:2 }}
+                              {% else %}
+                                {{ res.result|floatformat:0 }}
+                              {% endif %}
+                            </td>
+                            <td>{{ res.points|floatformat:0 }}</td>
+                            <td>
+                              <a href="{% url 'edit_result' event.id res.id %}?group={{ cat_code }}" class="btn btn-sm btn-outline-secondary">Ред.</a>
+                              <a href="{% url 'delete_result' event.id res.id %}?group={{ cat_code }}" class="btn btn-sm btn-outline-danger">Удал.</a>
+                            </td>
+                          </tr>
+                        {% empty %}
+                          <tr><td colspan="4">Нет результатов</td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4">Нет спортсменов</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endwith %}
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const select = document.getElementById('athleteSelect');
+  if (!select) return;
+
+  // Сохраняем исходные опции (кроме первой "---------")
+  const allOpts = Array.from(select.options).slice(1);
+
+  function filter(cat) {
+    // Очистить и вернуть плейсхолдер
+    select.innerHTML = '';
+    select.append(new Option('---------', ''));
+
+    allOpts.forEach(opt => {
+      const oCat = opt.dataset.category;
+      const champ = (opt.dataset.champion === 'true');
+      if (cat === 'C') {
+        if (champ) select.append(opt.cloneNode(true));
+      } else {
+        if (!champ && oCat === cat) select.append(opt.cloneNode(true));
+      }
+    });
+  }
+
+  // При старте — отфильтровать по активной вкладке
+  const activeBtn = document.querySelector('#catTabs button.active');
+  if (activeBtn) filter(activeBtn.id.replace('tab-', ''));
+
+  // И при каждом переключении таба
+  document.querySelectorAll('#catTabs button').forEach(btn => {
+    btn.addEventListener('shown.bs.tab', e => {
+      filter(e.target.id.replace('tab-', ''));
+      // Сброс выбранного значения при смене вкладки
+      select.value = '';
+    });
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Удалить результат</h2>
+  <p>
+    Вы действительно хотите удалить результат 
+    <strong>{{ object.get_discipline_display }}</strong> 
+    для спортсмена 
+    <strong>{{ object.athlete.name }}</strong>?
+  </p>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Удалить</button>
+    <a href="{% url 'event_detail' event.id %}" class="btn btn-secondary ms-2">Отменить</a>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,232 @@
+/* -------- Палитра и настройки -------- */
+:root{
+  --bg:#0f1115;
+  --surface:#151922;
+  --surface-2:#1c2230;
+  --border:#2a3242;
+  --text:#e6e9ef;
+  --muted:#a9b1c3;
+  --brand:#3b82f6;
+  --success:#22c55e;
+
+  /* Водяной знак: настройки по умолчанию */
+  --wm-opacity: .70;             /* прозрачность */
+  --wm-top: 96px;                 /* безопасная зона под хедером */
+  --wm-bottom: 96px;              /* безопасная зона над футером */
+  --wm-side: clamp(16px, 8vw, 120px); /* боковые поля, чтобы картинка не упиралась в края */
+}
+
+/* База */
+html, body { height:100%; margin:0; }
+body.app {
+  min-height:100%;
+  display:flex; flex-direction:column;
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+/* Хедер/футер */
+.site-header, .site-footer {
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+}
+.site-footer { border-top:1px solid var(--border); border-bottom:none; }
+.text-muted-80 { color: rgba(233,237,243,.7); }
+
+/* ---------- Центральная зона + водяной знак ---------- */
+main.container{
+  flex:1 0 auto;
+  position:relative;
+  overflow:hidden;
+}
+
+/* Водяной знак: всегда целиком между хедером и футером */
+main.container::before{
+  content:"";
+  position:absolute;
+  top: var(--wm-top);
+  bottom: var(--wm-bottom);
+  left: var(--wm-side);
+  right: var(--wm-side);
+
+  /* Рисуем лого внутри прямоугольника, НЕ обрезая */
+  background: url('/static/images/logo.jpg') center / contain no-repeat;
+  opacity: var(--wm-opacity);
+  filter: grayscale(100%) contrast(110%) brightness(115%);
+  pointer-events:none;
+  z-index:0;
+}
+
+/* Контент поверх */
+main.container > *{ position:relative; z-index:2; }
+
+/* ---------- Стартовая ---------- */
+.hero{ padding: 12px 0 8px; }
+.hero-row{
+  display:flex; align-items:center; justify-content:center; gap:12px;
+  max-width: 920px; margin: 0 auto; padding: 0 12px;
+}
+.hero-row h1{ margin:0; }
+.hero-mark{
+  width:42px; height:42px; flex:0 0 42px;
+  object-fit:cover; border-radius:8px; opacity:.9;
+}
+
+/* Контейнер списка */
+.surface-list{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:0.5rem;
+  margin: 16px auto 0;
+  width: 100%;
+  max-width: 640px;
+}
+
+/* Список */
+.surface-list .list-group{ background:transparent; }
+.surface-list .list-group-item{
+  background:transparent; border:0;
+  padding-left:0; padding-right:0;
+  transition: box-shadow .2s ease, transform .2s ease;
+}
+.surface-list .list-group-item + .list-group-item{ border-top:0; }
+.surface-list .list-group-item:hover{
+  background:transparent; border-radius:12px;
+  box-shadow:0 4px 12px rgba(0,0,0,.25);
+  transform: translateY(-2px);
+}
+
+/* Ссылки */
+a { color:var(--text); }
+a.link-plain { text-decoration:none; }
+a.link-plain:hover { text-decoration:underline; }
+
+/* Карточки/таблицы */
+.card{
+  background:var(--surface);
+  color:var(--text);
+  border:1px solid var(--border);
+  border-radius:12px;
+}
+.table thead{
+  background:var(--surface);
+  color:var(--text);
+  border-color:var(--border);
+}
+.table-striped tbody tr:nth-of-type(odd){
+  --bs-table-accent-bg:var(--surface-2);
+  color:var(--text);
+}
+.table>:not(caption)>*>*{ border-color:var(--border); }
+
+/* Кнопки/табы */
+.btn-primary{ background:var(--brand); border-color:var(--brand); }
+.btn-primary:hover{ filter:brightness(1.06); }
+.btn-success{ background:var(--success); border-color:var(--success); white-space:nowrap; }
+.btn-success:hover{ filter:brightness(1.06); }
+.btn-outline-secondary{ color:var(--text); border-color:var(--border); }
+.btn-outline-secondary:hover{ background:var(--surface-2); color:var(--text); }
+.nav-link{ color:var(--text); }
+.nav-link.active{ background:var(--surface-2); border-color:var(--border) var(--border) var(--surface-2); }
+
+/* Прочее */
+.text-danger{ color:#f66 !important; }
+
+/* ---------- Мобильная адаптация ---------- */
+@media (max-width: 576px){
+  :root{
+    --wm-opacity: .08;
+    --wm-top: 84px;
+    --wm-bottom: 84px;
+    --wm-side: 24px;         /* чуть меньше боковые поля на мобильном */
+  }
+}
+
+/* Стиль формы авторизации */
+.login-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 30px;
+  max-width: 400px;
+  margin: 0 auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.login-form h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: var(--text);
+}
+
+.login-form .form-label {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.login-form .form-control {
+  border-radius: 8px;
+  background-color: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  margin-bottom: 15px;
+  padding: 10px;
+}
+
+.login-form .form-control:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 5px var(--brand);
+}
+
+.login-form .btn {
+  width: 100%;
+  background-color: var(--brand);
+  border: none;
+  border-radius: 8px;
+  color: var(--text);
+  padding: 10px;
+  font-weight: 600;
+}
+
+.login-form .btn:hover {
+  background-color: var(--surface-2);
+  color: var(--text);
+}
+
+.login-form .form-text {
+  color: var(--muted);
+  text-align: center;
+  margin-top: 10px;
+}
+
+.login-form .form-check-label {
+  color: var(--text);
+}
+
+/* Добавляем отступ сверху для кнопки "Выход" */
+.btn-outline-danger {
+    margin-top: 20px;  /* Вы можете настроить это значение в зависимости от желаемого отступа */
+}
+
+/* Стили для кнопки "Выход" с уникальным классом */
+.logout-btn {
+    font-size: 1rem;  /* Размер шрифта */
+    padding: 0.5rem 1rem;  /* Отступы внутри кнопки */
+    border-radius: 0.375rem;  /* Скругленные углы */
+    width: 95%;  /* Уменьшаем ширину на 5% */
+    max-width: 400px; /* Ограничиваем максимальную ширину */
+    margin: 0 auto 20px auto;  /* Центрируем по горизонтали и отступ снизу */
+    display: block;  /* Делаем кнопку блочной для центрирования */
+    text-align: center;  /* Центрируем текст внутри кнопки */
+}
+
+/* Для мобильных устройств */
+@media (max-width: 576px) {
+  .login-form {
+    max-width: 90%;
+  }
+}
+
+

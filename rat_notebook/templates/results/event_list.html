@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Соревнования — K9 Dog Works Academy{% endblock %}
+
+{% block content %}
+<main class="container competition-page">
+
+  <div class="hero mb-4">
+    <div class="hero-row">
+      <img class="hero-mark d-none d-sm-inline" src="{% static 'images/logo.jpg' %}" alt="K9">
+      <h1 class="mb-0">Соревнования</h1>
+      <a href="{% url 'event_create' %}" class="btn btn-success ms-3">+ Новое событие</a>
+    </div>
+  </div>
+
+  <div class="surface-list">
+    <ul class="list-group">
+      {% for ev in events %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <a class="link-plain" href="{% url 'event_detail' ev.id %}">{{ ev.name }}</a>
+          <span class="badge bg-primary rounded-pill">{{ ev.date }}</span>
+        </li>
+      {% empty %}
+        <li class="list-group-item text-center text-muted">Пока нет ни одного события</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+</main>
+{% endblock %}

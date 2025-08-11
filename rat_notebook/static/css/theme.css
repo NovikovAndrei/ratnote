@@ -1,0 +1,73 @@
+/* ---- Тёмная палитра для всего сайта ---- */
+:root {
+  --bg: #0f1115;        /* общий фон страницы */
+  --surface: #151922;   /* карточки, навбар, футер */
+  --surface-2: #1c2230; /* активные/hover-состояния */
+  --border: #2a3242;    /* границы/акценты */
+  --text: #e6e9ef;      /* основной текст */
+  --muted: #a9b1c3;     /* вторичный текст */
+  --brand: #3b82f6;     /* фирменный цвет (синий) */
+  --success: #22c55e;   /* успех/кнопки */
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Единый цвет для «поверхностей» */
+.navbar, footer, .card, .dropdown-menu, .modal-content {
+  background-color: var(--surface) !important;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+/* Кнопки/ссылки */
+.btn-primary { background: var(--brand); border-color: var(--brand); }
+.btn-primary:hover { filter: brightness(1.05); }
+.btn-outline-light { color: var(--text); border-color: var(--border); }
+.btn-outline-light:hover { background: var(--surface-2); }
+
+a, .nav-link { color: var(--text); }
+.nav-link.active {
+  background: var(--surface-2);
+  border-color: var(--border) var(--border) var(--surface-2);
+}
+
+/* Таблицы */
+.table { color: var(--text); }
+.table-striped > tbody > tr:nth-of-type(odd) {
+  --bs-table-accent-bg: var(--surface-2);
+  color: var(--text);
+}
+.table>:not(caption)>*>* { border-color: var(--border); }
+
+/* Вспомогательные классы */
+.bg-app { background: var(--bg); }
+.text-muted { color: var(--muted) !important; }
+
+/* Блок-герой (картинка на главной) чтобы не спорил по тону */
+.hero {
+  background: radial-gradient(ellipse at top, rgba(255,255,255,.04), transparent 60%), var(--surface);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+/* Картинка-герой с аккуратным затемнением */
+.hero-image {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.hero-image img {
+  width: 100%;
+  display: block;
+  opacity: .92;               /* лёгкое затемнение, чтобы совпал «чёрный» */
+  filter: contrast(1.05) brightness(.9);
+}
+.hero-image::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(15,17,21,.55), rgba(15,17,21,.85));
+}
