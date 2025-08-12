@@ -10,7 +10,10 @@
     <div class="hero-row">
       <img class="hero-mark d-none d-sm-inline" src="{% static 'images/logo.jpg' %}" alt="K9">
       <h1 class="mb-0">Соревнования</h1>
-      <a href="{% url 'event_create' %}" class="btn btn-success ms-3">+ Новое событие</a>
+
+      {% if perms.results.add_event %}
+        <a href="{% url 'event_create' %}" class="btn btn-success ms-3">+ Новое событие</a>
+      {% endif %}
     </div>
   </div>
 

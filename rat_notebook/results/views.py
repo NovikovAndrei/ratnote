@@ -1,6 +1,6 @@
-# results/views.py
-
+from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth import authenticate, login, logout
+from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from .models import Event, Athlete, DisciplineResult, GROWTH_GROUPS
@@ -8,10 +8,15 @@ from .forms import AthleteForm, DisciplineResultForm, EventForm, LoginForm
 from .scoring import assign_growth_scores
 
 
+@login_required
+@permission_required('results.view_event', raise_exception=True)
 def event_list(request):
     events = Event.objects.order_by('-date')
     return render(request, 'results/event_list.html', {'events': events})
 
+
+@login_required
+@permission_required('results.add_event', raise_exception=True)
 def event_create(request):
     if request.method == 'POST':
         form = EventForm(request.POST)
@@ -22,6 +27,9 @@ def event_create(request):
         form = EventForm()
     return render(request, 'results/event_form.html', {'form': form, 'title': 'Создать событие'})
 
+
+@login_required
+@permission_required('results.change_event', raise_exception=True)
 def event_edit(request, event_id):
     ev = get_object_or_404(Event, pk=event_id)
     if request.method == 'POST':
@@ -33,11 +41,16 @@ def event_edit(request, event_id):
         form = EventForm(instance=ev)
     return render(request, 'results/event_form.html', {'form': form, 'title': 'Редактировать событие'})
 
+
+@login_required
+@permission_required('results.view_event', raise_exception=True)   # <— только право на просмотр страницы
 def event_detail(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
 
-    # --- обработка добавления спортсмена ---
+    # --- добавление спортсмена — требуем явное право add_athlete
     if request.method == 'POST' and 'add_athlete' in request.POST:
+        if not request.user.has_perm('results.add_athlete'):
+            return HttpResponseForbidden('Недостаточно прав')
         a_form = AthleteForm(request.POST, prefix='ath')
         if a_form.is_valid():
             at = a_form.save(commit=False)
@@ -49,8 +62,10 @@ def event_detail(request, event_id):
     else:
         a_form = AthleteForm(prefix='ath')
 
-    # --- обработка добавления результата ---
+    # --- добавление результата — требуем право add_disciplineresult
     if request.method == 'POST' and 'add_result' in request.POST:
+        if not request.user.has_perm('results.add_disciplineresult'):
+            return HttpResponseForbidden('Недостаточно прав')
         r_form = DisciplineResultForm(request.POST, prefix='res', event=event)
         if r_form.is_valid():
             res = r_form.save(commit=False)
@@ -65,7 +80,6 @@ def event_detail(request, event_id):
 
     assign_growth_scores(event)
 
-    # соберём рейтинги: чемпионы, затем по ростовым
     all_ath = event.athletes.all()
     category_rankings = {}
     champs = sorted(all_ath.filter(is_champion=True), key=lambda x: x.total_points, reverse=True)
@@ -79,7 +93,6 @@ def event_detail(request, event_id):
         if lst:
             category_rankings[cat] = (cat, lst)
 
-    # активная вкладка из query-параметра, иначе первая доступная
     active_group = request.GET.get('group')
     if active_group not in category_rankings:
         active_group = next(iter(category_rankings), None)
@@ -89,9 +102,12 @@ def event_detail(request, event_id):
         'athlete_form': a_form,
         'result_form': r_form,
         'category_rankings': category_rankings,
-        'active_group': active_group,   # <-- добавили
+        'active_group': active_group,
     })
 
+
+@login_required
+@permission_required('results.change_disciplineresult', raise_exception=True)  # <—
 def edit_result(request, event_id, pk):
     event = get_object_or_404(Event, pk=event_id)
     r = get_object_or_404(DisciplineResult, pk=pk, athlete__event=event)
@@ -107,6 +123,9 @@ def edit_result(request, event_id, pk):
         form = DisciplineResultForm(instance=r)
     return render(request, 'results/edit_result.html', {'event': event, 'form': form})
 
+
+@login_required
+@permission_required('results.delete_disciplineresult', raise_exception=True)  # <—
 def delete_result(request, event_id, pk):
     event = get_object_or_404(Event, pk=event_id)
     r = get_object_or_404(DisciplineResult, pk=pk, athlete__event=event)
@@ -128,12 +147,11 @@ def login_view(request):
             user = authenticate(request, username=username, password=password)
             if user is not None:
                 login(request, user)
-                return redirect('event_list')  # Замените на нужный URL после успешного входа
+                return redirect('event_list')
             else:
                 form.add_error(None, "Неверное имя пользователя или пароль.")
     else:
         form = LoginForm()
-
     return render(request, 'auth/login.html', {'form': form})
 
 

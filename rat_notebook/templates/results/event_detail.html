@@ -7,7 +7,8 @@
   <h1 class="mb-4">{{ event.name }} — {{ event.date }}</h1>
 
   <div class="row g-4 mb-5">
-    <!-- Форма добавления спортсмена -->
+    {# Форма добавления спортсмена — только с правом add_athlete #}
+    {% if perms.results.add_athlete %}
     <div class="col-md-6">
       <div class="card p-4">
         <h3 class="mb-4">Добавить спортсмена</h3>
@@ -37,8 +38,10 @@
         </form>
       </div>
     </div>
+    {% endif %}
 
-    <!-- Форма добавления результата -->
+    {# Форма добавления результата — только с правом add_disciplineresult #}
+    {% if perms.results.add_disciplineresult %}
     <div class="col-md-6">
       <div class="card p-4">
         <h3 class="mb-4">Добавить результат</h3>
@@ -89,9 +92,10 @@
         </form>
       </div>
     </div>
+    {% endif %}
   </div>
 
-  <!-- Вкладки по категориям -->
+  {# Вкладки по категориям #}
   <ul class="nav nav-tabs" id="catTabs" role="tablist">
     {% for cat_code, data in category_rankings.items %}
       {% with label=data.0 %}
@@ -127,7 +131,9 @@
                 <th>Место</th>
                 <th>Спортсмен</th>
                 <th>Очки</th>
-                <th>Действия</th>
+                {% if perms.results.change_disciplineresult or perms.results.delete_disciplineresult %}
+                  <th>Действия</th>
+                {% endif %}
               </tr>
             </thead>
             <tbody>
@@ -136,10 +142,12 @@
                   <td>{{ forloop.counter }}</td>
                   <td>{{ athlete.name }}</td>
                   <td>{{ athlete.total_points|floatformat:0 }}</td>
-                  <td></td>
+                  {% if perms.results.change_disciplineresult or perms.results.delete_disciplineresult %}
+                    <td></td>
+                  {% endif %}
                 </tr>
                 <tr class="table-secondary">
-                  <td colspan="4">
+                  <td colspan="{% if perms.results.change_disciplineresult or perms.results.delete_disciplineresult %}4{% else %}3{% endif %}">
                     <strong>Детализация результатов:</strong>
                     <table class="table table-sm mt-2 mb-0">
                       <thead>
@@ -147,7 +155,9 @@
                           <th>Дисциплина</th>
                           <th>Результат</th>
                           <th>Очки</th>
-                          <th>Действия</th>
+                          {% if perms.results.change_disciplineresult or perms.results.delete_disciplineresult %}
+                            <th>Действия</th>
+                          {% endif %}
                         </tr>
                       </thead>
                       <tbody>
@@ -162,20 +172,34 @@
                               {% endif %}
                             </td>
                             <td>{{ res.points|floatformat:0 }}</td>
-                            <td>
-                              <a href="{% url 'edit_result' event.id res.id %}?group={{ cat_code }}" class="btn btn-sm btn-outline-secondary">Ред.</a>
-                              <a href="{% url 'delete_result' event.id res.id %}?group={{ cat_code }}" class="btn btn-sm btn-outline-danger">Удал.</a>
-                            </td>
+                            {% if perms.results.change_disciplineresult or perms.results.delete_disciplineresult %}
+                              <td>
+                                {% if perms.results.change_disciplineresult %}
+                                  <a href="{% url 'edit_result' event.id res.id %}?group={{ cat_code }}" class="btn btn-sm btn-outline-secondary">Ред.</a>
+                                {% endif %}
+                                {% if perms.results.delete_disciplineresult %}
+                                  <a href="{% url 'delete_result' event.id res.id %}?group={{ cat_code }}" class="btn btn-sm btn-outline-danger">Удал.</a>
+                                {% endif %}
+                              </td>
+                            {% endif %}
                           </tr>
                         {% empty %}
-                          <tr><td colspan="4">Нет результатов</td></tr>
+                          <tr>
+                            <td colspan="{% if perms.results.change_disciplineresult or perms.results.delete_disciplineresult %}4{% else %}3{% endif %}">
+                              Нет результатов
+                            </td>
+                          </tr>
                         {% endfor %}
                       </tbody>
                     </table>
                   </td>
                 </tr>
               {% empty %}
-                <tr><td colspan="4">Нет спортсменов</td></tr>
+                <tr>
+                  <td colspan="{% if perms.results.change_disciplineresult or perms.results.delete_disciplineresult %}4{% else %}3{% endif %}">
+                    Нет спортсменов
+                  </td>
+                </tr>
               {% endfor %}
             </tbody>
           </table>
