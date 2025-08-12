@@ -229,4 +229,5 @@ a.link-plain:hover { text-decoration:underline; }
   }
 }
 
-
+/* одинаковая ширина маленьких кнопок действий */
+.btn-action{ min-width: 64px; text-align: center; }
