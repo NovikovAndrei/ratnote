@@ -1,28 +1,28 @@
+from math import floor
+
 # нормативы по ростовым категориям (для чемпионов)
+# treadmill — В СЕКУНДАХ (например, 25.20 значит 25.20 сек)
 QUALIFYING_NORMS = {
-    'XS': {'wall_jump': 280, 'high_jump': 180, 'long_jump': 400, 'barrier_jump': 90, 'a_frame': 28, 'treadmill': 0.48},
-    'S': {'wall_jump': 310, 'high_jump': 195, 'long_jump': 490, 'barrier_jump': 105, 'a_frame': 30, 'treadmill': 0.46},
-    'M': {'wall_jump': 330, 'high_jump': 205, 'long_jump': 510, 'barrier_jump': 115, 'a_frame': 32, 'treadmill': 0.44},
-    'L': {'wall_jump': 350, 'high_jump': 215, 'long_jump': 530, 'barrier_jump': 125, 'a_frame': 34, 'treadmill': 0.42},
-    'XL': {'wall_jump': 370, 'high_jump': 225, 'long_jump': 550, 'barrier_jump': 125, 'a_frame': 34, 'treadmill': 0.42},
-    'АСТ_S': {'wall_jump': 310, 'high_jump': 190, 'long_jump': 450, 'barrier_jump': 100, 'a_frame': 32,
-              'treadmill': 0.44},
-    'АСТ_M': {'wall_jump': 320, 'high_jump': 200, 'long_jump': 470, 'barrier_jump': 105, 'a_frame': 32,
-              'treadmill': 0.44},
-    'АСТ_L': {'wall_jump': 330, 'high_jump': 210, 'long_jump': 490, 'barrier_jump': 110, 'a_frame': 32,
-              'treadmill': 0.44},
-    'СБТ': {'wall_jump': 270, 'high_jump': 165, 'long_jump': 370, 'barrier_jump': 85, 'a_frame': 28, 'treadmill': 0.50},
-    'Малинуа': {'wall_jump': 370, 'high_jump': 230, 'long_jump': 530, 'barrier_jump': 130, 'a_frame': 36,
-                'treadmill': 0.42},
+    'XS':      {'wall_jump': 280, 'high_jump': 180, 'long_jump': 400, 'barrier_jump':  90, 'a_frame': 28, 'treadmill': 48.00},
+    'S':       {'wall_jump': 310, 'high_jump': 195, 'long_jump': 490, 'barrier_jump': 105, 'a_frame': 30, 'treadmill': 46.00},
+    'M':       {'wall_jump': 330, 'high_jump': 205, 'long_jump': 510, 'barrier_jump': 115, 'a_frame': 32, 'treadmill': 44.00},
+    'L':       {'wall_jump': 350, 'high_jump': 215, 'long_jump': 530, 'barrier_jump': 125, 'a_frame': 34, 'treadmill': 42.00},
+    'XL':      {'wall_jump': 370, 'high_jump': 225, 'long_jump': 550, 'barrier_jump': 125, 'a_frame': 34, 'treadmill': 42.00},
+    'АСТ_S':   {'wall_jump': 310, 'high_jump': 190, 'long_jump': 450, 'barrier_jump': 100, 'a_frame': 32, 'treadmill': 44.00},
+    'АСТ_M':   {'wall_jump': 320, 'high_jump': 200, 'long_jump': 470, 'barrier_jump': 105, 'a_frame': 32, 'treadmill': 44.00},
+    'АСТ_L':   {'wall_jump': 330, 'high_jump': 210, 'long_jump': 490, 'barrier_jump': 110, 'a_frame': 32, 'treadmill': 44.00},
+    'СБТ':     {'wall_jump': 270, 'high_jump': 165, 'long_jump': 370, 'barrier_jump':  85, 'a_frame': 28, 'treadmill': 50.00},
+    'Малинуа': {'wall_jump': 370, 'high_jump': 230, 'long_jump': 530, 'barrier_jump': 130, 'a_frame': 36, 'treadmill': 42.00},
 }
 
 STEP_CONFIG = {
-    'long_jump': {'step_size': 10, 'points_per_step': 1},
-    'wall_jump': {'step_size': 10, 'points_per_step': 3},
-    'high_jump': {'step_size': 5, 'points_per_step': 3},
-    'barrier_jump': {'step_size': 5, 'points_per_step': 3},
-    'a_frame': {'step_size': 1, 'points_per_step': 1},
-    'treadmill': {'step_size': 2, 'points_per_step': 1},
+    'long_jump':    {'step_size': 10,   'points_per_step': 1},
+    'wall_jump':    {'step_size': 10,   'points_per_step': 3},
+    'high_jump':    {'step_size': 5,    'points_per_step': 3},
+    'barrier_jump': {'step_size': 5,    'points_per_step': 3},
+    'a_frame':      {'step_size': 1,    'points_per_step': 1},
+    # treadmill: +1 балл за каждые ПОЛНЫЕ 2 секунды улучшения относительно нормы
+    'treadmill':    {'step_size': 2.0,  'points_per_step': 1},
 }
 
 RANK_POINTS = [25, 20, 15, 12, 10, 8, 6, 4, 2, 1]
@@ -31,35 +31,55 @@ RANK_POINTS = [25, 20, 15, 12, 10, 8, 6, 4, 2, 1]
 GROWTH_GROUPS = ['XS', 'S', 'M', 'L', 'XL', 'АСТ_S', 'АСТ_M', 'АСТ_L', 'СБТ', 'Малинуа']
 
 
+def _full_steps(delta: float, step: float) -> int:
+    """
+    Надёжный расчёт количества ПОЛНЫХ шагов без артефактов плавающей точки.
+    Пример: delta=3.999999, step=2.0 → 1 (а не 0).
+    """
+    if delta <= 0 or step <= 0:
+        return 0
+    # небольшой eps, чтобы сгладить двоичную погрешность float
+    eps = 1e-9
+    return floor((delta + eps) / step)
+
+
 def calculate_champion_points(category: str, discipline: str, result: float) -> int:
     norms = QUALIFYING_NORMS.get(category)
     config = STEP_CONFIG.get(discipline)
     if norms is None or config is None:
         return 0
+
     norm = norms[discipline]
+
     # штраф за 0 или None
     if result is None or result == 0:
         return -10
+
     if discipline == 'treadmill':
+        # меньше — лучше; result, norm — секунды
         if result > norm:
-            return 0
+            return -10  # норму не выполнил → штраф
         delta = norm - result
     else:
+        # больше — лучше
         if result < norm:
-            return 0
+            return -10  # норму не выполнил → штраф
         delta = result - norm
 
-    steps = int(delta // config['step_size'])
+    steps = _full_steps(delta, config['step_size'])
     return 10 + steps * config['points_per_step']
+
 
 
 def assign_growth_scores(event):
     """
     Для каждого discipline в событии:
      – выбираем только ростовые группы (is_champion=False)
-     – сортируем по результату (None/0 -> 0)
-     – даём по dense-ранжированию: при ничьей оба получают один и тот же place,
-       а следующий спортсмен получает place+1.
+     – сортируем по результату:
+         * treadmill — по возрастанию (меньше — лучше), нули/None в КОНЕЦ
+         * остальные — по убыванию, нули/None в КОНЕЦ
+     – dense-ранжирование: при ничьей оба получают один и тот же place,
+       следующий получает place+1
      – до 10-го места очки из RANK_POINTS, нулевые результаты штраф –25.
     """
     from .models import DisciplineResult
@@ -71,32 +91,39 @@ def assign_growth_scores(event):
             athlete__growth_category__in=GROWTH_GROUPS,
             discipline=discipline
         )
-        # сортируем по результату (None/0 -> 0), по убыванию
-        sorted_results = sorted(qs, key=lambda r: r.result or 0, reverse=True)
+
+        is_time = (discipline.code == 'treadmill')
+
+        if is_time:
+            # Меньше — лучше; нули/None в конец.
+            # Ключ: сперва валидность (0/None в конец), затем значение по возрастанию.
+            def sort_key(r):
+                val = r.result or 0
+                return (val <= 0, val)
+            sorted_results = sorted(qs, key=sort_key)
+        else:
+            # Больше — лучше; нули/None в конце за счёт (r.result or 0) и reverse=True.
+            sorted_results = sorted(qs, key=lambda r: (r.result or 0), reverse=True)
 
         rank = 1
         i = 0
         while i < len(sorted_results):
-            # собираем всех с одинаковым результатом
+            base_val = (sorted_results[i].result or 0)
             same = [sorted_results[i]]
             j = i + 1
-            while j < len(sorted_results) and (sorted_results[j].result or 0) == (sorted_results[i].result or 0):
+            while j < len(sorted_results) and (sorted_results[j].result or 0) == base_val:
                 same.append(sorted_results[j])
                 j += 1
 
-            # определяем очки: либо штраф, либо по списку RANK_POINTS
-            res_val = (sorted_results[i].result or 0)
-            if res_val == 0:
+            if base_val == 0:
                 pts = -25
             else:
                 pts = RANK_POINTS[rank - 1] if rank <= len(RANK_POINTS) else 0
 
-            # сохраняем
             for r in same:
                 r.points = pts
                 r.save()
 
-            # переходим к следующему рангу (dense ranking!)
             rank += 1
             i = j
 

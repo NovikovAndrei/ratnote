@@ -7,7 +7,6 @@
   <h1 class="mb-4">{{ event.name }} — {{ event.date }}</h1>
 
   <div class="row g-4 mb-5">
-    {# --- Форма добавления спортсмена (только с правом add_athlete) --- #}
     {% if perms.results.add_athlete %}
     <div class="col-md-6">
       <div class="card p-4">
@@ -47,7 +46,6 @@
     </div>
     {% endif %}
 
-    {# --- Форма добавления результата (только с правом add_disciplineresult) --- #}
     {% if perms.results.add_disciplineresult %}
     <div class="col-md-6">
       <div class="card p-4">
@@ -83,14 +81,29 @@
           </div>
 
           <div class="mb-3">
-            {{ result_form.discipline.label_tag }}{{ result_form.discipline }}
+            <label for="id_discipline" class="form-label">{{ result_form.discipline.label }}:</label>
+            <select id="id_discipline"
+                    name="{{ result_form.discipline.html_name }}"
+                    class="form-select">
+              <option value="">---------</option>
+              {% for disc in result_form.fields.discipline.queryset %}
+                <option value="{{ disc.pk }}" data-code="{{ disc.code }}">
+                  {{ disc.verbose }}
+                </option>
+              {% endfor %}
+            </select>
             {% for err in result_form.discipline.errors %}
               <div class="text-danger">{{ err }}</div>
             {% endfor %}
           </div>
 
           <div class="mb-3">
-            {{ result_form.result.label_tag }}{{ result_form.result }}
+            <label for="id_result" class="form-label">{{ result_form.result.label }}:</label>
+            <input type="number"
+                   id="id_result"
+                   name="{{ result_form.result.html_name }}"
+                   class="form-control"
+                   placeholder="Результат">
             {% for err in result_form.result.errors %}
               <div class="text-danger">{{ err }}</div>
             {% endfor %}
@@ -103,7 +116,6 @@
     {% endif %}
   </div>
 
-  {# --- Вкладки по категориям --- #}
   <ul class="nav nav-tabs" id="catTabs" role="tablist">
     {% for cat_code, data in category_rankings.items %}
       {% with label=data.0 %}
@@ -126,19 +138,17 @@
   <div class="tab-content mt-3" id="catTabsContent">
     {% for cat_code, data in category_rankings.items %}
       {% with label=data.0 athletes_list=data.1 %}
-      <div
-        class="tab-pane fade {% if active_group == cat_code %}show active{% endif %}"
-        id="pane-{{ cat_code }}"
-        role="tabpanel"
-        aria-labelledby="tab-{{ cat_code }}"
-      >
+      <div class="tab-pane fade {% if active_group == cat_code %}show active{% endif %}"
+           id="pane-{{ cat_code }}"
+           role="tabpanel"
+           aria-labelledby="tab-{{ cat_code }}">
         <div class="card p-3 mb-4">
           <table class="table table-striped mb-0">
             <thead>
               <tr>
                 <th>Место</th>
                 <th>Спортсмен</th>
-                <th>Итого</th> {# было «Очки» #}
+                <th>Итого</th>
               </tr>
             </thead>
             <tbody>
@@ -148,7 +158,6 @@
                   <td>{{ athlete.name }}</td>
                   <td>{{ athlete.total_points|floatformat:0 }}</td>
                 </tr>
-
                 <tr class="table-secondary">
                   <td colspan="3">
                     <strong>Детализация результатов:</strong>
@@ -175,7 +184,6 @@
                               {% endif %}
                             </td>
                             <td>{{ res.points|floatformat:0 }}</td>
-
                             {% if perms.results.change_disciplineresult or perms.results.delete_disciplineresult %}
                               <td>
                                 {% if perms.results.change_disciplineresult %}
@@ -216,37 +224,66 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  // Фильтрация спортсменов по категории
   const select = document.getElementById('athleteSelect');
-  if (!select) return;
-
-  // Сохраняем исходные опции (кроме placeholder)
-  const allOpts = Array.from(select.options).slice(1);
-
-  function filter(cat) {
-    select.innerHTML = '';
-    select.append(new Option('---------', ''));
-    allOpts.forEach(opt => {
-      const oCat = opt.dataset.category;
-      const champ = (opt.dataset.champion === 'true');
-      if (cat === 'C') {
-        if (champ) select.append(opt.cloneNode(true));
-      } else {
-        if (!champ && oCat === cat) select.append(opt.cloneNode(true));
-      }
+  if (select) {
+    const allOpts = Array.from(select.options).slice(1);
+    function filter(cat) {
+      select.innerHTML = '';
+      select.append(new Option('---------', ''));
+      allOpts.forEach(opt => {
+        const oCat = opt.dataset.category;
+        const champ = (opt.dataset.champion === 'true');
+        if (cat === 'C') {
+          if (champ) select.append(opt.cloneNode(true));
+        } else {
+          if (!champ && oCat === cat) select.append(opt.cloneNode(true));
+        }
+      });
+    }
+    const activeBtn = document.querySelector('#catTabs button.active');
+    if (activeBtn) filter(activeBtn.id.replace('tab-', ''));
+    document.querySelectorAll('#catTabs button').forEach(btn => {
+      btn.addEventListener('shown.bs.tab', e => {
+        filter(e.target.id.replace('tab-', ''));
+        select.value = '';
+      });
     });
   }
 
-  // При старте
-  const activeBtn = document.querySelector('#catTabs button.active');
-  if (activeBtn) filter(activeBtn.id.replace('tab-', ''));
+  // Автоматическая установка step/min/max для поля результата
+  const stepRules = {
+    long_jump:    {step: 10,   min: 0, max: 800},
+    wall_jump:    {step: 10,   min: 0, max: 500},
+    high_jump:    {step: 5,    min: 0, max: 270},
+    barrier_jump: {step: 5,    min: 0, max: 180},
+    a_frame:      {step: 1,    min: 0, max: 80},
+    treadmill:    {step: 0.01, min: 0, max: 60}
+  };
 
-  // При смене вкладок
-  document.querySelectorAll('#catTabs button').forEach(btn => {
-    btn.addEventListener('shown.bs.tab', e => {
-      filter(e.target.id.replace('tab-', ''));
-      select.value = '';
-    });
-  });
+  const disciplineSelect = document.getElementById('id_discipline');
+  const resultInput = document.getElementById('id_result');
+
+  function applyStep() {
+    const selected = disciplineSelect.options[disciplineSelect.selectedIndex];
+    if (!selected) return;
+    const code = selected.dataset.code;
+    if (code && stepRules[code]) {
+      const r = stepRules[code];
+      resultInput.step = r.step;
+      resultInput.min = r.min;
+      resultInput.max = r.max;
+    } else {
+      resultInput.removeAttribute('step');
+      resultInput.removeAttribute('min');
+      resultInput.removeAttribute('max');
+    }
+  }
+
+  if (disciplineSelect && resultInput) {
+    applyStep();
+    disciplineSelect.addEventListener('change', applyStep);
+  }
 });
 </script>
 {% endblock %}

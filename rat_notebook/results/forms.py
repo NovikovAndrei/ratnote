@@ -48,15 +48,11 @@ class DisciplineResultForm(forms.ModelForm):
         model = DisciplineResult
         fields = ['athlete', 'discipline', 'result']
         widgets = {
-            'athlete': forms.Select(attrs={
-                'class': 'form-select'
-            }),
-            'discipline': forms.Select(attrs={
-                'class': 'form-select'
-            }),
+            'athlete': forms.Select(attrs={'class': 'form-select'}),
+            'discipline': forms.Select(attrs={'class': 'form-select'}),
+            # result на старте — базовый, значения min/max/step будут перезаписаны в __init__
             'result': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'step': 1,  # изменили шаг на 1
                 'placeholder': 'Результат'
             }),
         }
@@ -68,14 +64,37 @@ class DisciplineResultForm(forms.ModelForm):
 
     def __init__(self, *args, event=None, **kwargs):
         super().__init__(*args, **kwargs)
+
         if event is not None:
             self.fields['athlete'].queryset = event.athletes.order_by('name')
             self.fields['discipline'].queryset = event.disciplines.all()
 
+        # красивое отображение спортсмена
         def athlete_label(obj):
             cup = ' 🏆' if obj.is_champion else ''
             return f"{obj.name} ({obj.growth_category}){cup}"
         self.fields['athlete'].label_from_instance = athlete_label
+
+        # если дисциплина уже выбрана (редактирование результата) → подставляем step/min/max
+        discipline = self.initial.get('discipline') or self.data.get('discipline')
+        if discipline:
+            try:
+                # discipline может быть объектом или кодом
+                if hasattr(discipline, 'code'):
+                    code = discipline.code
+                else:
+                    # Получаем объект дисциплины по id
+                    disc_obj = self.fields['discipline'].queryset.get(pk=discipline)
+                    code = disc_obj.code
+                rules = VALIDATION_RULES.get(code)
+                if rules:
+                    self.fields['result'].widget.attrs.update({
+                        'step': rules['step'],
+                        'min': rules['min'],
+                        'max': rules['max'],
+                    })
+            except Exception:
+                pass
 
     def clean_result(self):
         result = self.cleaned_data.get('result')
@@ -91,8 +110,9 @@ class DisciplineResultForm(forms.ModelForm):
                         f"Результат для «{discipline.verbose}» должен быть между {mn} и {mx}."
                     )
 
+                # проверка кратности шагу
                 rem = (result - mn) / step
-                if abs(round(rem) - rem) > 1e-6:
+                if abs(round(rem) - rem) > 1e-9:
                     raise ValidationError(
                         f"Результат для «{discipline.verbose}» должен быть кратен {step}."
                     )
