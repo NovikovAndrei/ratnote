@@ -29,14 +29,17 @@ class AthleteForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Имя спортсмена'
             }),
-            # делаем таким же селектом, как у athlete в форме результатов
             'growth_category': forms.Select(attrs={'class': 'form-select'}),
             'is_champion': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
             'growth_category': 'Ростовая категория',
-            'is_champion': 'Чемпион',
+            'is_champion': 'Чемпион:',
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.label_suffix = ''  # убираем автоматическое двоеточие Django
 
 
 # ---- Результат дисциплины ----
@@ -74,9 +77,8 @@ class DisciplineResultForm(forms.ModelForm):
             return f"{obj.name} ({obj.growth_category}){cup}"
         self.fields['athlete'].label_from_instance = athlete_label
 
-
     def clean_result(self):
-        result     = self.cleaned_data.get('result')
+        result = self.cleaned_data.get('result')
         discipline = self.cleaned_data.get('discipline')
 
         if discipline and result is not None:

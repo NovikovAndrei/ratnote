@@ -31,9 +31,11 @@
             {% endfor %}
           </div>
 
-          <div class="form-check mb-3 d-flex align-items-center gap-2">
-            {{ athlete_form.is_champion }}
-            {{ athlete_form.is_champion.label_tag }}
+          <div class="form-check mb-3">
+            <label class="form-check-label inline-gap">
+              {{ athlete_form.is_champion.label }}
+              {{ athlete_form.is_champion }}
+            </label>
             {% for err in athlete_form.is_champion.errors %}
               <div class="text-danger">{{ err }}</div>
             {% endfor %}

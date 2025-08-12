@@ -231,3 +231,19 @@ a.link-plain:hover { text-decoration:underline; }
 
 /* одинаковая ширина маленьких кнопок действий */
 .btn-action{ min-width: 64px; text-align: center; }
+
+/* Универсальный класс для чекбоксов: текст слева, галочка справа,
+   ровная линия и комфортный отступ */
+.form-check-label.inline-gap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;           /* расстояние между словом и галочкой */
+  line-height: 1.2;   /* убираем «прыжок» по вертикали */
+}
+
+/* В Bootstrap у .form-check-input есть верхний отступ — снимаем его,
+   чтобы чекбокс был строго по центру текста */
+.form-check-label.inline-gap .form-check-input {
+  margin: 0;
+}
+
