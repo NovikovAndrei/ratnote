@@ -10,20 +10,21 @@
   --success:#22c55e;
 
   /* Водяной знак: настройки по умолчанию */
-  --wm-opacity: .70;             /* прозрачность */
-  --wm-top: 96px;                 /* безопасная зона под хедером */
-  --wm-bottom: 96px;              /* безопасная зона над футером */
-  --wm-side: clamp(16px, 8vw, 120px); /* боковые поля, чтобы картинка не упиралась в края */
+  --wm-opacity: .70;
+  --wm-top: 96px;
+  --wm-bottom: 96px;
+  --wm-side: clamp(16px, 8vw, 120px);
 }
 
 /* База */
 html, body { height:100%; margin:0; }
 body.app {
-  min-height:100%;
-  display:flex; flex-direction:column;
-  background:var(--bg);
-  color:var(--text);
-  font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  min-height: 100vh; /* вся высота экрана */
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 }
 
 /* Хедер/футер */
@@ -41,7 +42,7 @@ main.container{
   overflow:hidden;
 }
 
-/* Водяной знак: всегда целиком между хедером и футером */
+/* Водяной знак */
 main.container::before{
   content:"";
   position:absolute;
@@ -49,8 +50,6 @@ main.container::before{
   bottom: var(--wm-bottom);
   left: var(--wm-side);
   right: var(--wm-side);
-
-  /* Рисуем лого внутри прямоугольника, НЕ обрезая */
   background: url('/static/images/logo.jpg') center / contain no-repeat;
   opacity: var(--wm-opacity);
   filter: grayscale(100%) contrast(110%) brightness(115%);
@@ -140,7 +139,7 @@ a.link-plain:hover { text-decoration:underline; }
     --wm-opacity: .08;
     --wm-top: 84px;
     --wm-bottom: 84px;
-    --wm-side: 24px;         /* чуть меньше боковые поля на мобильном */
+    --wm-side: 24px;
   }
 }
 
@@ -152,20 +151,17 @@ a.link-plain:hover { text-decoration:underline; }
   padding: 30px;
   max-width: 400px;
   margin: 0 auto;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
-
 .login-form h2 {
   text-align: center;
   margin-bottom: 20px;
   color: var(--text);
 }
-
 .login-form .form-label {
   color: var(--text);
   font-weight: 500;
 }
-
 .login-form .form-control {
   border-radius: 8px;
   background-color: var(--surface-2);
@@ -174,12 +170,10 @@ a.link-plain:hover { text-decoration:underline; }
   margin-bottom: 15px;
   padding: 10px;
 }
-
 .login-form .form-control:focus {
   border-color: var(--brand);
   box-shadow: 0 0 5px var(--brand);
 }
-
 .login-form .btn {
   width: 100%;
   background-color: var(--brand);
@@ -189,61 +183,49 @@ a.link-plain:hover { text-decoration:underline; }
   padding: 10px;
   font-weight: 600;
 }
-
 .login-form .btn:hover {
   background-color: var(--surface-2);
   color: var(--text);
 }
-
 .login-form .form-text {
   color: var(--muted);
   text-align: center;
   margin-top: 10px;
 }
-
 .login-form .form-check-label {
   color: var(--text);
-}
-
-/* Добавляем отступ сверху для кнопки "Выход" */
-.btn-outline-danger {
-    margin-top: 20px;  /* Вы можете настроить это значение в зависимости от желаемого отступа */
-}
-
-/* Стили для кнопки "Выход" с уникальным классом */
-.logout-btn {
-    font-size: 1rem;  /* Размер шрифта */
-    padding: 0.5rem 1rem;  /* Отступы внутри кнопки */
-    border-radius: 0.375rem;  /* Скругленные углы */
-    width: 95%;  /* Уменьшаем ширину на 5% */
-    max-width: 400px; /* Ограничиваем максимальную ширину */
-    margin: 0 auto 20px auto;  /* Центрируем по горизонтали и отступ снизу */
-    display: block;  /* Делаем кнопку блочной для центрирования */
-    text-align: center;  /* Центрируем текст внутри кнопки */
-}
-
-/* Для мобильных устройств */
-@media (max-width: 576px) {
-  .login-form {
-    max-width: 90%;
-  }
 }
 
 /* одинаковая ширина маленьких кнопок действий */
 .btn-action{ min-width: 64px; text-align: center; }
 
-/* Универсальный класс для чекбоксов: текст слева, галочка справа,
-   ровная линия и комфортный отступ */
+/* Чекбокс: текст слева, галочка справа */
 .form-check-label.inline-gap {
   display: inline-flex;
   align-items: center;
-  gap: 8px;           /* расстояние между словом и галочкой */
-  line-height: 1.2;   /* убираем «прыжок» по вертикали */
+  gap: 8px;
+  line-height: 1.2;
 }
-
-/* В Bootstrap у .form-check-input есть верхний отступ — снимаем его,
-   чтобы чекбокс был строго по центру текста */
 .form-check-label.inline-gap .form-check-input {
   margin: 0;
 }
 
+/* Кнопка "Выход" */
+.logout-btn {
+  flex-shrink: 0;
+  font-size: 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  width: 95%;
+  max-width: 400px;
+  margin: 12px auto 20px auto; /* отступ сверху и снизу */
+  display: block;
+  text-align: center;
+}
+
+/* На мобильных чуть больше отступ сверху для кнопки */
+@media (max-width: 576px) {
+  .logout-btn {
+    margin-top: 20px;
+  }
+}
