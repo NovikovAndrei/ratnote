@@ -1,25 +1,34 @@
-# results/scoring.py
-
 # нормативы по ростовым категориям (для чемпионов)
 QUALIFYING_NORMS = {
-    'XS': {'wall_jump':280, 'high_jump':180, 'long_jump':400, 'barrier_jump':90,  'a_frame':28, 'treadmill':0.48},
-    'S':  {'wall_jump':310, 'high_jump':195, 'long_jump':490, 'barrier_jump':105, 'a_frame':30, 'treadmill':0.46},
-    'M':  {'wall_jump':330, 'high_jump':205, 'long_jump':510, 'barrier_jump':115, 'a_frame':32, 'treadmill':0.44},
-    'L':  {'wall_jump':350, 'high_jump':215, 'long_jump':530, 'barrier_jump':125, 'a_frame':34, 'treadmill':0.42},
-    'XL': {'wall_jump':370, 'high_jump':225, 'long_jump':550, 'barrier_jump':125, 'a_frame':34, 'treadmill':0.42},
+    'XS': {'wall_jump': 280, 'high_jump': 180, 'long_jump': 400, 'barrier_jump': 90, 'a_frame': 28, 'treadmill': 0.48},
+    'S': {'wall_jump': 310, 'high_jump': 195, 'long_jump': 490, 'barrier_jump': 105, 'a_frame': 30, 'treadmill': 0.46},
+    'M': {'wall_jump': 330, 'high_jump': 205, 'long_jump': 510, 'barrier_jump': 115, 'a_frame': 32, 'treadmill': 0.44},
+    'L': {'wall_jump': 350, 'high_jump': 215, 'long_jump': 530, 'barrier_jump': 125, 'a_frame': 34, 'treadmill': 0.42},
+    'XL': {'wall_jump': 370, 'high_jump': 225, 'long_jump': 550, 'barrier_jump': 125, 'a_frame': 34, 'treadmill': 0.42},
+    'ACT_S': {'wall_jump': 310, 'high_jump': 190, 'long_jump': 450, 'barrier_jump': 100, 'a_frame': 32,
+              'treadmill': 0.44},
+    'АСТ_M': {'wall_jump': 320, 'high_jump': 200, 'long_jump': 470, 'barrier_jump': 105, 'a_frame': 32,
+              'treadmill': 0.44},
+    'АСТ_L': {'wall_jump': 330, 'high_jump': 210, 'long_jump': 490, 'barrier_jump': 110, 'a_frame': 32,
+              'treadmill': 0.44},
+    'СБТ': {'wall_jump': 270, 'high_jump': 165, 'long_jump': 370, 'barrier_jump': 85, 'a_frame': 28, 'treadmill': 0.50},
+    'Малинуа': {'wall_jump': 370, 'high_jump': 230, 'long_jump': 530, 'barrier_jump': 130, 'a_frame': 36,
+                'treadmill': 0.42},
 }
 
 STEP_CONFIG = {
-    'long_jump':    {'step_size':10, 'points_per_step':1},
-    'wall_jump':    {'step_size':10, 'points_per_step':3},
-    'high_jump':    {'step_size':5,  'points_per_step':3},
-    'barrier_jump': {'step_size':5,  'points_per_step':3},
-    'a_frame':      {'step_size':1,  'points_per_step':1},
-    'treadmill':    {'step_size':2,  'points_per_step':1},
+    'long_jump': {'step_size': 10, 'points_per_step': 1},
+    'wall_jump': {'step_size': 10, 'points_per_step': 3},
+    'high_jump': {'step_size': 5, 'points_per_step': 3},
+    'barrier_jump': {'step_size': 5, 'points_per_step': 3},
+    'a_frame': {'step_size': 1, 'points_per_step': 1},
+    'treadmill': {'step_size': 2, 'points_per_step': 1},
 }
 
-RANK_POINTS   = [25,20,15,12,10,8,6,4,2,1]
-GROWTH_GROUPS = ['XS','S','M','L','XL']
+RANK_POINTS = [25, 20, 15, 12, 10, 8, 6, 4, 2, 1]
+
+# ростовые группы (используются в assign_growth_scores)
+GROWTH_GROUPS = ['XS', 'S', 'M', 'L', 'XL', 'АСТ_S', 'АСТ_M', 'АСТ_L', 'СБТ', 'Малинуа']
 
 
 def calculate_champion_points(category: str, discipline: str, result: float) -> int:
@@ -80,7 +89,7 @@ def assign_growth_scores(event):
             if res_val == 0:
                 pts = -25
             else:
-                pts = RANK_POINTS[rank-1] if rank <= len(RANK_POINTS) else 0
+                pts = RANK_POINTS[rank - 1] if rank <= len(RANK_POINTS) else 0
 
             # сохраняем
             for r in same:

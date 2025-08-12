@@ -1,5 +1,3 @@
-# results/models.py
-
 from django.db import models
 from .scoring import GROWTH_GROUPS, calculate_champion_points
 
@@ -43,7 +41,7 @@ class DisciplineType(models.Model):
 class Athlete(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="athletes")
     name = models.CharField("Имя спортсмена", max_length=100)
-    growth_category = models.CharField("Ростовая категория", max_length=2,
+    growth_category = models.CharField("Ростовая категория", max_length=12,
                                        choices=GROWTH_CHOICES, default="XS", blank=True, null=True)
     is_champion = models.BooleanField("Чемпион", default=False)
 
