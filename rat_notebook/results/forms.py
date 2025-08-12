@@ -49,6 +49,33 @@ VALIDATION_RULES = {
     'treadmill':    {'step': 0.01, 'min': 0,   'max': 60},  # секунды с сотыми
 }
 
+# class DisciplineResultForm(forms.ModelForm):
+#     class Meta:
+#         model = DisciplineResult
+#         fields = ['athlete', 'discipline', 'result']
+#         widgets = {
+#             'athlete':    forms.Select(attrs={'class': 'form-select'}),
+#             'discipline': forms.Select(attrs={'class': 'form-select'}),
+#             'result':     forms.NumberInput(attrs={
+#                 'class': 'form-control', 'step': '0.01', 'placeholder': 'Результат'
+#             }),
+#         }
+#
+#     def __init__(self, *args, event=None, **kwargs):
+#         super().__init__(*args, **kwargs)
+#
+#         if event is not None:
+#             # 1) только спортсмены этого события
+#             self.fields['athlete'].queryset = event.athletes.order_by('name')
+#             # 2) только дисциплины, добавленные в это событие
+#             self.fields['discipline'].queryset = event.disciplines.all()
+#
+#         # подпись спортсмена с эмодзи для чемпионов
+#         def athlete_label(obj):
+#             cup = ' 🏆' if obj.is_champion else ''
+#             return f"{obj.name} ({obj.growth_category}){cup}"
+#         self.fields['athlete'].label_from_instance = athlete_label
+
 class DisciplineResultForm(forms.ModelForm):
     class Meta:
         model = DisciplineResult
@@ -56,25 +83,20 @@ class DisciplineResultForm(forms.ModelForm):
         widgets = {
             'athlete':    forms.Select(attrs={'class': 'form-select'}),
             'discipline': forms.Select(attrs={'class': 'form-select'}),
-            'result':     forms.NumberInput(attrs={
-                'class': 'form-control', 'step': '0.01', 'placeholder': 'Результат'
-            }),
+            'result':     forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': 'Результат'}),
         }
 
     def __init__(self, *args, event=None, **kwargs):
         super().__init__(*args, **kwargs)
-
         if event is not None:
-            # 1) только спортсмены этого события
             self.fields['athlete'].queryset = event.athletes.order_by('name')
-            # 2) только дисциплины, добавленные в это событие
             self.fields['discipline'].queryset = event.disciplines.all()
 
-        # подпись спортсмена с эмодзи для чемпионов
         def athlete_label(obj):
             cup = ' 🏆' if obj.is_champion else ''
             return f"{obj.name} ({obj.growth_category}){cup}"
         self.fields['athlete'].label_from_instance = athlete_label
+
 
     def clean_result(self):
         result     = self.cleaned_data.get('result')

@@ -107,22 +107,33 @@ def event_detail(request, event_id):
 
 
 @login_required
-@permission_required('results.change_disciplineresult', raise_exception=True)  # <—
+@permission_required('results.change_disciplineresult', raise_exception=True)
 def edit_result(request, event_id, pk):
     event = get_object_or_404(Event, pk=event_id)
     r = get_object_or_404(DisciplineResult, pk=pk, athlete__event=event)
     group_param = request.GET.get('group') or ('C' if r.athlete.is_champion else r.athlete.growth_category)
 
     if request.method == 'POST':
-        form = DisciplineResultForm(request.POST, instance=r)
+        form = DisciplineResultForm(request.POST, instance=r, event=event)
+        # визуально заблокированы — но главное, ниже жёстко фиксируем
+        form.fields['athlete'].disabled = True
+        form.fields['discipline'].disabled = True
+
         if form.is_valid():
-            form.save()
+            obj = form.save(commit=False)
+            # серверная защита: не позволяем сменить спортсмена/дисциплину
+            obj.athlete_id = r.athlete_id
+            obj.discipline_id = r.discipline_id
+            obj.save()
             url = reverse('event_detail', args=[event.id])
             return redirect(f"{url}?group={group_param}#pane-{group_param}")
     else:
-        form = DisciplineResultForm(instance=r)
-    return render(request, 'results/edit_result.html', {'event': event, 'form': form})
+        form = DisciplineResultForm(instance=r, event=event)
+        # в UI селекты неактивны
+        form.fields['athlete'].disabled = True
+        form.fields['discipline'].disabled = True
 
+    return render(request, 'results/edit_result.html', {'event': event, 'form': form})
 
 @login_required
 @permission_required('results.delete_disciplineresult', raise_exception=True)  # <—
