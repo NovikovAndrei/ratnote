@@ -15,7 +15,7 @@ VALIDATION_RULES = {
     'high_jump':    {'step': 5,    'min': 0,   'max': 270},
     'barrier_jump': {'step': 5,    'min': 0,   'max': 180},
     'a_frame':      {'step': 1,    'min': 0,   'max': 80},
-    'treadmill':    {'step': 0.01, 'min': 0,   'max': 60},  # секунды с сотыми
+    'treadmill':    {'step': 0.01, 'min': 0,   'max': 120},  # секунды с сотыми
 }
 
 

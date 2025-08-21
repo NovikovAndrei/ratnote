@@ -51,24 +51,26 @@ def calculate_champion_points(category: str, discipline: str, result: float) -> 
 
     norm = norms[discipline]
 
-    # штраф за 0 или None
+    # штраф за отсутствие результата
     if result is None or result == 0:
         return -10
 
     if discipline == 'treadmill':
-        # меньше — лучше; result, norm — секунды
-        if result > norm:
-            return -10  # норму не выполнил → штраф
-        delta = norm - result
+        # treadmill: меньше — лучше; norm/result в секундах
+        if result > 60:
+            return -10  # слишком долго
+        elif result > norm:
+            return 0  # в пределах минуты, но норму не выполнил
+        else:
+            delta = norm - result
     else:
-        # больше — лучше
+        # все остальные дисциплины: больше — лучше
         if result < norm:
-            return -10  # норму не выполнил → штраф
+            return 0  # норму не выполнил → 0
         delta = result - norm
 
     steps = _full_steps(delta, config['step_size'])
     return 10 + steps * config['points_per_step']
-
 
 
 def assign_growth_scores(event):
