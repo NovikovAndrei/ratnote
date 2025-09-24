@@ -5,7 +5,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from .models import Event, Athlete, DisciplineResult, GROWTH_GROUPS
 from .forms import AthleteForm, DisciplineResultForm, EventForm, LoginForm
-from .scoring import assign_growth_scores
+from .scoring import assign_growth_scores, compute_final_places
 
 
 @login_required
@@ -78,31 +78,63 @@ def event_detail(request, event_id):
     else:
         r_form = DisciplineResultForm(prefix='res', event=event)
 
+    # Пересчёт очков по снарядам (идемпотентен)
     assign_growth_scores(event)
 
-    all_ath = event.athletes.all()
-    category_rankings = {}
-    champs = sorted(all_ath.filter(is_champion=True), key=lambda x: x.total_points, reverse=True)
-    if champs:
-        category_rankings['C'] = ('Чемпионы', champs)
-    for cat in GROWTH_GROUPS:
-        lst = sorted(
-            all_ath.filter(is_champion=False, growth_category=cat),
-            key=lambda x: x.total_points, reverse=True
-        )
-        if lst:
-            category_rankings[cat] = (cat, lst)
+    # Готовим таблицы мест по competition внутри ростовых/породных групп
+    standings = compute_final_places(event, include_champions=False)
 
-    active_group = request.GET.get('group')
+    category_rankings = {}
+
+    # Чемпионы
+    champs_qs = (
+        event.athletes.filter(is_champion=True)
+        .prefetch_related("results", "results__discipline")
+    )
+    if champs_qs.exists():
+        champs = []
+        for a in champs_qs:
+            total = sum(int(r.points or 0) for r in a.results.all())
+            champs.append((a, total))
+
+        champs.sort(key=lambda p: (p[1], p[0].name), reverse=True)
+
+        last = None
+        place = 0
+        idx = 0
+        champs_rows = []
+        for a, total in champs:
+            idx += 1
+            if total != last:
+                place = idx
+                last = total
+            setattr(a, "place", place)  # ← только place
+            champs_rows.append(a)
+
+        category_rankings["C"] = ("Чемпионы", champs_rows)
+
+    # Ростовые/породные группы
+    for code, rows in standings.items():
+        lst = []
+        for row in rows:
+            a = row["athlete"]
+            setattr(a, "place", row["place"])  # ← только place
+            lst.append(a)
+        if lst:
+            category_rankings[code] = (code, lst)
+
+
+    # Какая вкладка активна
+    active_group = request.GET.get("group")
     if active_group not in category_rankings:
         active_group = next(iter(category_rankings), None)
 
-    return render(request, 'results/event_detail.html', {
-        'event': event,
-        'athlete_form': a_form,
-        'result_form': r_form,
-        'category_rankings': category_rankings,
-        'active_group': active_group,
+    return render(request, "results/event_detail.html", {
+        "event": event,
+        "athlete_form": a_form,
+        "result_form": r_form,
+        "category_rankings": category_rankings,
+        "active_group": active_group,
     })
 
 
