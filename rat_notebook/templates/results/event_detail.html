@@ -154,7 +154,7 @@
             <tbody>
               {% for athlete in athletes_list %}
                 <tr>
-                  <td>{{ forloop.counter }}</td>
+                  <td>{{ athlete.place|default:forloop.counter }}</td>
                   <td>{{ athlete.name }}</td>
                   <td>{{ athlete.total_points|floatformat:0 }}</td>
                 </tr>
