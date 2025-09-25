@@ -51,7 +51,7 @@ def event_detail(request, event_id):
     if request.method == 'POST' and 'add_athlete' in request.POST:
         if not request.user.has_perm('results.add_athlete'):
             return HttpResponseForbidden('Недостаточно прав')
-        a_form = AthleteForm(request.POST, prefix='ath')
+        a_form = AthleteForm(request.POST, prefix='ath', event=event)
         if a_form.is_valid():
             at = a_form.save(commit=False)
             at.event = event
@@ -60,7 +60,7 @@ def event_detail(request, event_id):
             url = reverse('event_detail', args=[event.id])
             return redirect(f"{url}?group={group_code}#pane-{group_code}")
     else:
-        a_form = AthleteForm(prefix='ath')
+        a_form = AthleteForm(prefix='ath', event=event)
 
     # --- добавление результата — требуем право add_disciplineresult
     if request.method == 'POST' and 'add_result' in request.POST:

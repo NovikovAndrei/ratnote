@@ -38,8 +38,27 @@ class AthleteForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        # получим event из вьюхи (передадим ниже)
+        self.event = kwargs.pop('event', None)
         super().__init__(*args, **kwargs)
         self.label_suffix = ''  # убираем автоматическое двоеточие Django
+
+    def clean_name(self):
+        name = self.cleaned_data.get('name')
+        if not name:
+            return name
+        name = name.strip()
+
+        # выясняем событие: при создании — из self.event, при редактировании — из instance.event
+        event = self.event or (self.instance.event if self.instance and self.instance.pk else None)
+        if event:
+            qs = Athlete.objects.filter(event=event, name=name)
+            # если редактирование — исключаем самого себя
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError('Спортсмен с таким именем уже существует в этом событии.')
+        return name
 
 
 # ---- Результат дисциплины ----
