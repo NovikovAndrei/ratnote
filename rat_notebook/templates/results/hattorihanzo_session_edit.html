@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Редактировать тренировку</h2>
+    <a class="btn btn-outline-secondary" href="/hattorihanzo?date={{ session.date|date:'Y-m-d' }}">Назад</a>
+  </div>
+
+  <div class="card p-3">
+    <form method="post" id="session-edit-form">
+      {% csrf_token %}
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-3">{{ session_form.date.label_tag }}{{ session_form.date }}</div>
+        <div class="col-md-3">{{ session_form.start_time.label_tag }}{{ session_form.start_time }}</div>
+        <div class="col-md-3">{{ session_form.end_time.label_tag }}{{ session_form.end_time }}</div>
+        <div class="col-md-3">{{ session_form.notes.label_tag }}{{ session_form.notes }}</div>
+      </div>
+
+      {% if session_form.non_field_errors %}
+        <div class="text-danger mb-2">{{ session_form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="d-flex align-items-center justify-content-between mt-3">
+        <div>
+          <h6 class="mb-0">Упражнения</h6>
+          <div class="text-muted small">Перетаскивай строки мышкой — порядок сохранится автоматически</div>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-sm btn-outline-primary" id="add-row-btn">+ Добавить ещё строку</button>
+          <span id="reorder-status" class="small text-muted align-self-center"></span>
+        </div>
+      </div>
+
+      {{ formset.management_form }}
+
+      <div class="table-responsive mt-2">
+        <table class="table table-sm table-striped align-middle">
+          <thead>
+            <tr>
+              <th style="width:48px;"></th>
+              <th style="min-width:200px;">Упражнение</th>
+              <th style="width:110px;">План</th>
+              <th style="width:110px;">Факт</th>
+              <th style="min-width:220px;">Плюсы</th>
+              <th style="min-width:220px;">Минусы</th>
+              <th style="width:120px;">Действие</th>
+            </tr>
+          </thead>
+
+          <tbody id="formset-body">
+            {% for f in formset %}
+              <tr class="formset-row"
+                  {% if f.instance.pk %}data-ex-id="{{ f.instance.pk }}"{% endif %}
+                  draggable="true">
+                <td class="text-center" style="cursor:grab; user-select:none;">≡</td>
+
+                <td>
+                  {{ f.id }}
+                  {# ВАЖНО: DELETE нужен для корректной работы formset при сохранении #}
+                  <span style="display:none;">{{ f.DELETE }}</span>
+
+                  {{ f.exercise }}
+                  {% for err in f.exercise.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </td>
+
+                <td>
+                  {{ f.planned_reps }}
+                  {% for err in f.planned_reps.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </td>
+
+                <td>
+                  {{ f.actual_reps }}
+                  {% for err in f.actual_reps.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </td>
+
+                <td>{{ f.pros }}</td>
+                <td>{{ f.cons }}</td>
+
+                <td class="text-center">
+                  {% if f.instance.pk %}
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger js-delete-saved"
+                            data-delete-url="{% url 'hattorihanzo_exercise_delete' f.instance.pk %}">
+                      Удалить
+                    </button>
+                  {% else %}
+                    <button type="button" class="btn btn-sm btn-outline-danger js-remove-new">Удалить</button>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if formset.non_form_errors %}
+        <div class="text-danger mb-2">{{ formset.non_form_errors }}</div>
+      {% endif %}
+
+      <div class="d-flex gap-2 mt-3">
+        <button class="btn btn-primary" type="submit">Сохранить</button>
+        <a class="btn btn-outline-danger" href="{% url 'hattorihanzo_session_delete' session.id %}">Удалить тренировку</a>
+      </div>
+
+      {# template для новой строки (не сохранена, data-ex-id нет) #}
+      <template id="row-template">
+        <tr class="formset-row" draggable="true">
+          <td class="text-center" style="cursor:grab; user-select:none;">≡</td>
+          <td>
+            {{ formset.empty_form.id }}
+            <span style="display:none;">{{ formset.empty_form.DELETE }}</span>
+            {{ formset.empty_form.exercise }}
+          </td>
+          <td>{{ formset.empty_form.planned_reps }}</td>
+          <td>{{ formset.empty_form.actual_reps }}</td>
+          <td>{{ formset.empty_form.pros }}</td>
+          <td>{{ formset.empty_form.cons }}</td>
+          <td class="text-center">
+            <button type="button" class="btn btn-sm btn-outline-danger js-remove-new">Удалить</button>
+          </td>
+        </tr>
+      </template>
+
+    </form>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const addBtn = document.getElementById("add-row-btn");
+  const body = document.getElementById("formset-body");
+  const totalForms = document.querySelector('[name$="-TOTAL_FORMS"]');
+  const tpl = document.getElementById("row-template");
+  const statusEl = document.getElementById("reorder-status");
+
+  function getCsrf() {
+    const el = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    return el ? el.value : "";
+  }
+
+  function setStatus(text) {
+    if (!statusEl) return;
+    statusEl.textContent = text || "";
+  }
+
+  // ---------------- add new row ----------------
+  function addRow() {
+    const index = parseInt(totalForms.value, 10);
+    let html = tpl.innerHTML;
+    html = html.replaceAll("__prefix__", String(index));
+    body.insertAdjacentHTML("beforeend", html);
+    totalForms.value = index + 1;
+  }
+
+  if (addBtn && body && totalForms && tpl) {
+    addBtn.addEventListener("click", addRow);
+  }
+
+  // ---------------- remove NEW (unsaved) row ----------------
+  function removeNewRow(tr) {
+    // для новых строк (без instance pk) можно реально удалить из DOM и уменьшить TOTAL_FORMS,
+    // иначе Django будет ожидать эти индексы и ругаться.
+    tr.remove();
+    const currentTotal = parseInt(totalForms.value, 10);
+    if (currentTotal > 0) totalForms.value = currentTotal - 1;
+  }
+
+  // ---------------- delete SAVED row (ideal) ----------------
+  async function deleteSavedRow(tr, url) {
+    // 1) пометить DELETE, чтобы formset при сохранении не валидировал поля этой формы
+    const delInput = tr.querySelector('input[type="checkbox"][name$="-DELETE"]');
+    if (delInput) delInput.checked = true;
+
+    // 2) скрыть строку (НЕ удалять из DOM!)
+    tr.style.display = "none";
+
+    // 3) удалить на сервере сразу
+    try {
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "X-CSRFToken": getCsrf() },
+      });
+
+      if (!resp.ok) throw new Error("bad_response");
+
+      // 4) после удаления можно уплотнить порядок оставшихся (не обязательно, но полезно)
+      await persistOrder();
+
+    } catch (e) {
+      // откат если ошибка
+      if (delInput) delInput.checked = false;
+      tr.style.display = "";
+      window.location.reload();
+    }
+  }
+
+  // ---------------- click handlers ----------------
+  document.addEventListener("click", (e) => {
+    const btnNew = e.target.closest(".js-remove-new");
+    if (btnNew) {
+      e.preventDefault();
+      const tr = btnNew.closest("tr.formset-row");
+      if (tr) removeNewRow(tr);
+      return;
+    }
+
+    const btnSaved = e.target.closest(".js-delete-saved");
+    if (btnSaved) {
+      e.preventDefault();
+      const tr = btnSaved.closest("tr.formset-row");
+      const url = btnSaved.getAttribute("data-delete-url");
+      if (tr && url) deleteSavedRow(tr, url);
+      return;
+    }
+  });
+
+  // ---------------- drag & drop reorder ----------------
+  let draggedRow = null;
+
+  function currentSavedIdsInDomOrder() {
+    return Array.from(body.querySelectorAll("tr[data-ex-id]"))
+      .filter(tr => tr.style.display !== "none") // не учитываем скрытые удалённые
+      .map(tr => tr.getAttribute("data-ex-id"))
+      .filter(Boolean)
+      .map(x => parseInt(x, 10));
+  }
+
+  async function persistOrder() {
+    const ids = currentSavedIdsInDomOrder();
+    if (ids.length < 2) return;
+
+    setStatus("Сохраняю порядок…");
+
+    try {
+      const resp = await fetch("{% url 'hattorihanzo_exercises_reorder' session.id %}", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCsrf(),
+        },
+        body: JSON.stringify({ ordered_ids: ids }),
+      });
+      if (!resp.ok) throw new Error("bad_response");
+      setStatus("Порядок сохранён");
+      setTimeout(() => setStatus(""), 1200);
+    } catch (e) {
+      setStatus("Ошибка сохранения порядка");
+      setTimeout(() => setStatus(""), 2000);
+    }
+  }
+
+  function onDragStart(e) {
+    const tr = e.target.closest("tr.formset-row");
+    if (!tr) return;
+
+    draggedRow = tr;
+    tr.classList.add("opacity-50");
+    e.dataTransfer.effectAllowed = "move";
+  }
+
+  function onDragEnd(e) {
+    const tr = e.target.closest("tr.formset-row");
+    if (tr) tr.classList.remove("opacity-50");
+    draggedRow = null;
+  }
+
+  function onDragOver(e) {
+    e.preventDefault();
+    const target = e.target.closest("tr.formset-row");
+    if (!target || !draggedRow || target === draggedRow) return;
+
+    // не даём вставлять относительно скрытых удалённых строк
+    if (target.style.display === "none" || draggedRow.style.display === "none") return;
+
+    const rect = target.getBoundingClientRect();
+    const isAfter = (e.clientY - rect.top) > rect.height / 2;
+
+    if (isAfter) target.after(draggedRow);
+    else target.before(draggedRow);
+  }
+
+  function onDrop(e) {
+    e.preventDefault();
+    persistOrder();
+  }
+
+  body.addEventListener("dragstart", onDragStart);
+  body.addEventListener("dragend", onDragEnd);
+  body.addEventListener("dragover", onDragOver);
+  body.addEventListener("drop", onDrop);
+})();
+</script>
+{% endblock %}

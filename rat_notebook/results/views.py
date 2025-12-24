@@ -1,10 +1,16 @@
+import json
+from datetime import date as dt_date
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth import authenticate, login, logout
-from django.http import HttpResponseForbidden
+from django.views.decorators.http import require_POST
+from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
-from .models import Event, Athlete, DisciplineResult, GROWTH_GROUPS
-from .forms import AthleteForm, DisciplineResultForm, EventForm, LoginForm
+from django.db import transaction
+from django.utils.dateparse import parse_date
+from .models import Event, DisciplineResult, PuppyTrainingSession, PuppyTrainingExercise
+from .forms import AthleteForm, DisciplineResultForm, EventForm, LoginForm, PuppyTrainingSessionForm, \
+    PuppyTrainingExerciseCreateFormSet, PuppyTrainingExerciseEditFormSet
 from .scoring import assign_growth_scores, compute_final_places
 
 
@@ -201,3 +207,125 @@ def login_view(request):
 def custom_logout(request):
     logout(request)
     return redirect('/')
+
+
+@login_required
+def hattorihanzo(request):
+    selected_date = parse_date(request.GET.get("date") or "") or dt_date.today()
+
+    if request.method == "POST":
+        session_form = PuppyTrainingSessionForm(request.POST)
+        if session_form.is_valid():
+            session = session_form.save()
+            formset = PuppyTrainingExerciseCreateFormSet(request.POST, instance=session)
+            if formset.is_valid():
+                formset.save()
+                return redirect(f"{request.path}?date={session.date.isoformat()}")
+            # если formset невалидный — удаляем созданную сессию (чтобы не было пустых)
+            session.delete()
+        else:
+            formset = PuppyTrainingExerciseCreateFormSet(request.POST)
+    else:
+        session_form = PuppyTrainingSessionForm(initial={"date": selected_date})
+        formset = PuppyTrainingExerciseCreateFormSet()
+
+    sessions = (
+        PuppyTrainingSession.objects
+        .filter(date=selected_date)
+        .prefetch_related("exercises")
+        .order_by("start_time", "id")
+    )
+
+    return render(
+        request,
+        "results/hattorihanzo.html",
+        {
+            "selected_date": selected_date,
+            "sessions": sessions,
+            "session_form": session_form,
+            "formset": formset,
+        },
+    )
+
+
+@login_required
+def hattorihanzo_session_edit(request, pk: int):
+    session = get_object_or_404(PuppyTrainingSession, pk=pk)
+
+    if request.method == "POST":
+        session_form = PuppyTrainingSessionForm(request.POST, instance=session)
+        formset = PuppyTrainingExerciseEditFormSet(request.POST, instance=session)
+
+        if session_form.is_valid() and formset.is_valid():
+            session_form.save()
+            formset.save()
+            return redirect(f"/hattorihanzo?date={session.date.isoformat()}")
+    else:
+        session_form = PuppyTrainingSessionForm(instance=session)
+        formset = PuppyTrainingExerciseEditFormSet(instance=session)
+
+    return render(
+        request,
+        "results/hattorihanzo_session_edit.html",
+        {
+            "session": session,
+            "session_form": session_form,
+            "formset": formset,
+        },
+    )
+
+
+@login_required
+def hattorihanzo_session_delete(request, pk: int):
+    session = get_object_or_404(PuppyTrainingSession, pk=pk)
+
+    if request.method == "POST":
+        selected_date = session.date
+        session.delete()
+        return redirect(f"/hattorihanzo?date={selected_date.isoformat()}")
+
+    return render(
+        request,
+        "results/hattorihanzo_session_confirm_delete.html",
+        {"session": session},
+    )
+
+
+@login_required
+@require_POST
+def hattorihanzo_exercise_delete(request, pk: int):
+    ex = get_object_or_404(PuppyTrainingExercise, pk=pk)
+    session_id = ex.session_id
+    ex.delete()
+    return redirect("hattorihanzo_session_edit", pk=session_id)
+
+
+@login_required
+@require_POST
+def hattorihanzo_exercises_reorder(request, pk: int):
+    """
+    pk = id сессии
+    body: {"ordered_ids":[12, 15, 9]}
+    """
+    session = get_object_or_404(PuppyTrainingSession, pk=pk)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+        ordered_ids = payload.get("ordered_ids", [])
+        ordered_ids = [int(x) for x in ordered_ids]
+    except Exception:
+        return JsonResponse({"ok": False, "error": "bad_json"}, status=400)
+
+    # проверяем что это упражнения именно этой сессии
+    existing_ids = set(
+        PuppyTrainingExercise.objects.filter(session=session).values_list("id", flat=True)
+    )
+    if not ordered_ids or any(x not in existing_ids for x in ordered_ids):
+        return JsonResponse({"ok": False, "error": "invalid_ids"}, status=400)
+
+    # Обновляем позиции 1..N в новом порядке
+    with transaction.atomic():
+        for pos, ex_id in enumerate(ordered_ids, start=1):
+            PuppyTrainingExercise.objects.filter(id=ex_id, session=session).update(position=pos)
+
+    return JsonResponse({"ok": True})

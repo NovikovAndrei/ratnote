@@ -1,6 +1,8 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from .models import Athlete, DisciplineResult, Event
+from django.forms import inlineformset_factory
+from .models import PuppyTrainingSession, PuppyTrainingExercise
 
 
 class LoginForm(forms.Form):
@@ -153,3 +155,53 @@ class EventForm(forms.ModelForm):
             'date': 'Дата события',
             'disciplines': 'Дисциплины',
         }
+
+
+class PuppyTrainingSessionForm(forms.ModelForm):
+    class Meta:
+        model = PuppyTrainingSession
+        fields = ["date", "start_time", "end_time", "notes"]
+        widgets = {
+            "date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "start_time": forms.TimeInput(attrs={"type": "time", "class": "form-control"}),
+            "end_time": forms.TimeInput(attrs={"type": "time", "class": "form-control"}),
+            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        start = cleaned.get("start_time")
+        end = cleaned.get("end_time")
+        if start and end and end <= start:
+            raise forms.ValidationError("Время конца должно быть позже времени начала.")
+        return cleaned
+
+
+class PuppyTrainingExerciseForm(forms.ModelForm):
+    class Meta:
+        model = PuppyTrainingExercise
+        fields = ["exercise", "planned_reps", "actual_reps", "pros", "cons"]
+        widgets = {
+            "exercise": forms.TextInput(attrs={"class": "form-control"}),
+            "planned_reps": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+            "actual_reps": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+            "pros": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+            "cons": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+        }
+
+
+PuppyTrainingExerciseCreateFormSet = inlineformset_factory(
+    parent_model=PuppyTrainingSession,
+    model=PuppyTrainingExercise,
+    form=PuppyTrainingExerciseForm,
+    extra=1,          # на создании пусть будет 1 пустая строка
+    can_delete=False, # чекбокс удаления нам не нужен
+)
+
+PuppyTrainingExerciseEditFormSet = inlineformset_factory(
+    parent_model=PuppyTrainingSession,
+    model=PuppyTrainingExercise,
+    form=PuppyTrainingExerciseForm,
+    extra=0,          # на редактировании НЕ показываем пустую строку
+    can_delete=True,
+)

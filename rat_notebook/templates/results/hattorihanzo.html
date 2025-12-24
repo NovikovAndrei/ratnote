@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h2 class="mb-0">Дневник щенка — Hattori Hanzo</h2>
+
+    <form method="get" class="d-flex gap-2">
+      <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control">
+      <button class="btn btn-outline-secondary" type="submit">Показать</button>
+    </form>
+  </div>
+
+  <div class="card p-3 mb-4">
+    <h5 class="mb-3">Добавить тренировку</h5>
+
+    <form method="post" id="session-create-form">
+      {% csrf_token %}
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-3">{{ session_form.date.label_tag }}{{ session_form.date }}</div>
+        <div class="col-md-3">{{ session_form.start_time.label_tag }}{{ session_form.start_time }}</div>
+        <div class="col-md-3">{{ session_form.end_time.label_tag }}{{ session_form.end_time }}</div>
+        <div class="col-md-3">{{ session_form.notes.label_tag }}{{ session_form.notes }}</div>
+      </div>
+
+      {% if session_form.non_field_errors %}
+        <div class="text-danger mb-2">{{ session_form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="d-flex align-items-center justify-content-between mt-3">
+        <h6 class="mb-0">Упражнения</h6>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="add-row-btn">+ Добавить ещё строку</button>
+      </div>
+
+      {{ formset.management_form }}
+
+      <div class="table-responsive mt-2">
+        <table class="table table-sm table-striped align-middle" id="exercises-table">
+          <thead>
+            <tr>
+              <th style="min-width:200px;">Упражнение</th>
+              <th style="width:110px;">План</th>
+              <th style="width:110px;">Факт</th>
+              <th style="min-width:220px;">Плюсы</th>
+              <th style="min-width:220px;">Минусы</th>
+              <th style="width:120px;">Удалить</th>
+            </tr>
+          </thead>
+
+          <tbody id="formset-body">
+            {% for f in formset %}
+              <tr class="formset-row">
+                <td>
+                  {{ f.id }}
+                  {{ f.exercise }}
+                  {% for err in f.exercise.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </td>
+                <td>
+                  {{ f.planned_reps }}
+                  {% for err in f.planned_reps.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </td>
+                <td>
+                  {{ f.actual_reps }}
+                  {% for err in f.actual_reps.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </td>
+                <td>{{ f.pros }}</td>
+                <td>{{ f.cons }}</td>
+                <td class="text-center">
+                  <button type="button" class="btn btn-sm btn-outline-danger js-remove-row">Удалить</button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if formset.non_form_errors %}
+        <div class="text-danger mb-2">{{ formset.non_form_errors }}</div>
+      {% endif %}
+
+      <button class="btn btn-primary" type="submit">Сохранить тренировку</button>
+
+      {# Шаблон новой строки: берём поля из empty_form, там есть __prefix__ #}
+      <template id="row-template">
+        <tr class="formset-row">
+          <td>{{ formset.empty_form.id }}{{ formset.empty_form.exercise }}</td>
+          <td>{{ formset.empty_form.planned_reps }}</td>
+          <td>{{ formset.empty_form.actual_reps }}</td>
+          <td>{{ formset.empty_form.pros }}</td>
+          <td>{{ formset.empty_form.cons }}</td>
+          <td class="text-center">
+            <button type="button" class="btn btn-sm btn-outline-danger js-remove-row">Удалить</button>
+          </td>
+        </tr>
+      </template>
+
+    </form>
+  </div>
+
+  <h5 class="mb-2">Тренировки за {{ selected_date|date:"d.m.Y" }}</h5>
+
+  {% for s in sessions %}
+    <div class="card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="fw-semibold">
+            {{ s.start_time|time:"H:i" }} – {{ s.end_time|time:"H:i" }}
+          </div>
+          {% if s.notes %}
+            <div class="text-muted small" style="white-space:pre-wrap;">{{ s.notes }}</div>
+          {% endif %}
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'hattorihanzo_session_edit' s.id %}">Редактировать</a>
+          <a class="btn btn-sm btn-outline-danger" href="{% url 'hattorihanzo_session_delete' s.id %}">Удалить</a>
+        </div>
+      </div>
+
+      <div class="table-responsive mt-2">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Упражнение</th>
+              <th>План</th>
+              <th>Факт</th>
+              <th>Плюсы</th>
+              <th>Минусы</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in s.exercises.all %}
+              <tr>
+                <td class="fw-semibold">{{ e.exercise }}</td>
+                <td>{{ e.planned_reps }}</td>
+                <td>{{ e.actual_reps }}</td>
+                <td style="white-space:pre-wrap;">{{ e.pros }}</td>
+                <td style="white-space:pre-wrap;">{{ e.cons }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="text-muted">Упражнений нет</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% empty %}
+    <div class="text-muted">Нет тренировок за эту дату.</div>
+  {% endfor %}
+
+</div>
+
+<script>
+(function () {
+  const addBtn = document.getElementById("add-row-btn");
+  const body = document.getElementById("formset-body");
+  const totalForms = document.querySelector('[name$="-TOTAL_FORMS"]');
+  const tpl = document.getElementById("row-template");
+
+  function addRow() {
+    const index = parseInt(totalForms.value, 10);
+    let html = tpl.innerHTML;
+    html = html.replaceAll("__prefix__", String(index));
+    body.insertAdjacentHTML("beforeend", html);
+    totalForms.value = index + 1;
+  }
+
+  function removeRow(btn) {
+    const tr = btn.closest("tr.formset-row");
+    if (!tr) return;
+
+    // Удаляем строку из DOM и уменьшаем TOTAL_FORMS
+    tr.remove();
+    const currentTotal = parseInt(totalForms.value, 10);
+    if (currentTotal > 0) totalForms.value = currentTotal - 1;
+  }
+
+  if (addBtn && body && totalForms && tpl) {
+    addBtn.addEventListener("click", addRow);
+  }
+
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".js-remove-row");
+    if (btn) {
+      e.preventDefault();
+      removeRow(btn);
+    }
+  });
+})();
+</script>
+{% endblock %}

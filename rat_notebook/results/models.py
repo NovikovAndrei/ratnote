@@ -86,3 +86,51 @@ class DisciplineResult(models.Model):
 
     def __str__(self):
         return f"{self.athlete.name}: {self.discipline.verbose} — {self.points} очков"
+
+
+class PuppyTrainingSession(models.Model):
+    date = models.DateField("Дата",db_index=True)
+    start_time = models.TimeField("Время начала")
+    end_time = models.TimeField("Время конца")
+    notes = models.TextField("Заметка к тренировке", blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date", "-start_time", "-id"]
+
+    def __str__(self):
+        return f"{self.date} {self.start_time}-{self.end_time}"
+
+
+class PuppyTrainingExercise(models.Model):
+    session = models.ForeignKey(
+        PuppyTrainingSession,
+        on_delete=models.CASCADE,
+        related_name="exercises",
+    )
+
+    exercise = models.CharField("Упражнение", max_length=200)
+    planned_reps = models.PositiveIntegerField("План (повторения)")
+    actual_reps = models.PositiveIntegerField("Факт (повторения)")
+    pros = models.TextField("Плюсы", blank=True)
+    cons = models.TextField("Минусы", blank=True)
+
+    position = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return self.exercise
+
+    def save(self, *args, **kwargs):
+        if not self.position:
+            max_pos = (
+                PuppyTrainingExercise.objects
+                .filter(session_id=self.session_id)
+                .aggregate(m=models.Max("position"))
+                .get("m")
+            ) or 0
+            self.position = max_pos + 1
+        super().save(*args, **kwargs)
