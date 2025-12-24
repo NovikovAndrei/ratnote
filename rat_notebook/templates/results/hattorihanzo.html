@@ -12,7 +12,7 @@
   </div>
 
   <div class="card p-3 mb-4">
-    <h5 class="mb-3">Добавить тренировку</h5>
+    <h5 class="mb-3">Добавить тренировку (с упражнениями)</h5>
 
     <form method="post" id="session-create-form">
       {% csrf_token %}
@@ -35,7 +35,8 @@
 
       {{ formset.management_form }}
 
-      <div class="table-responsive mt-2">
+      {# ===================== DESKTOP TABLE ===================== #}
+      <div class="table-responsive mt-2 d-none d-md-block">
         <table class="table table-sm table-striped align-middle" id="exercises-table">
           <thead>
             <tr>
@@ -48,7 +49,7 @@
             </tr>
           </thead>
 
-          <tbody id="formset-body">
+          <tbody id="formset-body-table">
             {% for f in formset %}
               <tr class="formset-row">
                 <td>
@@ -75,14 +76,55 @@
         </table>
       </div>
 
+      {# ===================== MOBILE CARDS ===================== #}
+      <div class="mt-2 d-block d-md-none" id="formset-cards">
+        {% for f in formset %}
+          <div class="card p-3 mb-2 formset-card">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div class="fw-semibold">Упражнение</div>
+              <button type="button" class="btn btn-sm btn-outline-danger js-remove-row">Удалить</button>
+            </div>
+
+            <div class="mb-2">
+              {{ f.id }}
+              {{ f.exercise }}
+              {% for err in f.exercise.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+            </div>
+
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <div class="small text-muted mb-1">План</div>
+                {{ f.planned_reps }}
+                {% for err in f.planned_reps.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+              </div>
+              <div class="col-6">
+                <div class="small text-muted mb-1">Факт</div>
+                {{ f.actual_reps }}
+                {% for err in f.actual_reps.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+              </div>
+            </div>
+
+            <div class="mb-2">
+              <div class="small text-muted mb-1">Плюсы</div>
+              {{ f.pros }}
+            </div>
+
+            <div class="mb-0">
+              <div class="small text-muted mb-1">Минусы</div>
+              {{ f.cons }}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
       {% if formset.non_form_errors %}
         <div class="text-danger mb-2">{{ formset.non_form_errors }}</div>
       {% endif %}
 
       <button class="btn btn-primary" type="submit">Сохранить тренировку</button>
 
-      {# Шаблон новой строки: берём поля из empty_form, там есть __prefix__ #}
-      <template id="row-template">
+      {# ======== templates for new rows (table + card), both use __prefix__ ======== #}
+      <template id="row-template-table">
         <tr class="formset-row">
           <td>{{ formset.empty_form.id }}{{ formset.empty_form.exercise }}</td>
           <td>{{ formset.empty_form.planned_reps }}</td>
@@ -93,6 +135,41 @@
             <button type="button" class="btn btn-sm btn-outline-danger js-remove-row">Удалить</button>
           </td>
         </tr>
+      </template>
+
+      <template id="row-template-card">
+        <div class="card p-3 mb-2 formset-card">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="fw-semibold">Упражнение</div>
+            <button type="button" class="btn btn-sm btn-outline-danger js-remove-row">Удалить</button>
+          </div>
+
+          <div class="mb-2">
+            {{ formset.empty_form.id }}
+            {{ formset.empty_form.exercise }}
+          </div>
+
+          <div class="row g-2 mb-2">
+            <div class="col-6">
+              <div class="small text-muted mb-1">План</div>
+              {{ formset.empty_form.planned_reps }}
+            </div>
+            <div class="col-6">
+              <div class="small text-muted mb-1">Факт</div>
+              {{ formset.empty_form.actual_reps }}
+            </div>
+          </div>
+
+          <div class="mb-2">
+            <div class="small text-muted mb-1">Плюсы</div>
+            {{ formset.empty_form.pros }}
+          </div>
+
+          <div class="mb-0">
+            <div class="small text-muted mb-1">Минусы</div>
+            {{ formset.empty_form.cons }}
+          </div>
+        </div>
       </template>
 
     </form>
@@ -154,29 +231,60 @@
 <script>
 (function () {
   const addBtn = document.getElementById("add-row-btn");
-  const body = document.getElementById("formset-body");
+
   const totalForms = document.querySelector('[name$="-TOTAL_FORMS"]');
-  const tpl = document.getElementById("row-template");
+
+  const tableBody = document.getElementById("formset-body-table");
+  const cardsWrap = document.getElementById("formset-cards");
+
+  const tplTable = document.getElementById("row-template-table");
+  const tplCard = document.getElementById("row-template-card");
+
+  function isMobile() {
+    return window.matchMedia("(max-width: 767.98px)").matches;
+  }
 
   function addRow() {
     const index = parseInt(totalForms.value, 10);
-    let html = tpl.innerHTML;
-    html = html.replaceAll("__prefix__", String(index));
-    body.insertAdjacentHTML("beforeend", html);
+
+    // добавляем СРАЗУ в обе версии (и table, и cards),
+    // чтобы при смене ориентации/ширины ничего не ломалось.
+    // Но поля дублировать нельзя — поэтому одну версию держим "мертвой":
+    // мы будем клонировать только видимую часть, а во второй хранить пустой контейнер.
+    // В нашем случае проще: всегда добавляем и в таблицу, и в карточки,
+    // но ВАЖНО: одна из версий скрыта через d-none/d-md-block, т.е. inputs всё равно в DOM.
+    // Это значит: ДУБЛЬ input'ов будет отправляться! => так нельзя.
+    //
+    // Поэтому здесь добавляем ТОЛЬКО в ту версию, которая сейчас видима.
+    // Это безопасно и соответствует UX.
+
+    if (isMobile()) {
+      let html = tplCard.innerHTML.replaceAll("__prefix__", String(index));
+      cardsWrap.insertAdjacentHTML("beforeend", html);
+    } else {
+      let html = tplTable.innerHTML.replaceAll("__prefix__", String(index));
+      tableBody.insertAdjacentHTML("beforeend", html);
+    }
+
     totalForms.value = index + 1;
   }
 
   function removeRow(btn) {
-    const tr = btn.closest("tr.formset-row");
-    if (!tr) return;
+    if (isMobile()) {
+      const card = btn.closest(".formset-card");
+      if (!card) return;
+      card.remove();
+    } else {
+      const tr = btn.closest("tr.formset-row");
+      if (!tr) return;
+      tr.remove();
+    }
 
-    // Удаляем строку из DOM и уменьшаем TOTAL_FORMS
-    tr.remove();
     const currentTotal = parseInt(totalForms.value, 10);
     if (currentTotal > 0) totalForms.value = currentTotal - 1;
   }
 
-  if (addBtn && body && totalForms && tpl) {
+  if (addBtn && totalForms && tplTable && tplCard && tableBody && cardsWrap) {
     addBtn.addEventListener("click", addRow);
   }
 
@@ -187,6 +295,12 @@
       removeRow(btn);
     }
   });
+
+  // ВАЖНОЕ ограничение:
+  // Мы добавляем строки только в текущий вид (mobile или desktop).
+  // Если пользователь добавил строки на мобиле, а потом развернул экран — он их не увидит в таблице.
+  // Это редкий кейс. Если хочешь полностью идеальный вариант с переключением вида,
+  // надо делать единый DOM и переставлять верстку без дублирования полей.
 })();
 </script>
 {% endblock %}

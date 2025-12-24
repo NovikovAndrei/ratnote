@@ -35,7 +35,8 @@
 
       {{ formset.management_form }}
 
-      <div class="table-responsive mt-2">
+      {# ===================== DESKTOP TABLE ===================== #}
+      <div class="table-responsive mt-2 d-none d-md-block">
         <table class="table table-sm table-striped align-middle">
           <thead>
             <tr>
@@ -49,7 +50,7 @@
             </tr>
           </thead>
 
-          <tbody id="formset-body">
+          <tbody id="formset-body-table">
             {% for f in formset %}
               <tr class="formset-row"
                   {% if f.instance.pk %}data-ex-id="{{ f.instance.pk }}"{% endif %}
@@ -58,7 +59,6 @@
 
                 <td>
                   {{ f.id }}
-                  {# ВАЖНО: DELETE нужен для корректной работы formset при сохранении #}
                   <span style="display:none;">{{ f.DELETE }}</span>
 
                   {{ f.exercise }}
@@ -95,6 +95,62 @@
         </table>
       </div>
 
+      {# ===================== MOBILE CARDS ===================== #}
+      <div class="mt-2 d-block d-md-none" id="formset-cards">
+        {% for f in formset %}
+          <div class="card p-3 mb-2 formset-card"
+               {% if f.instance.pk %}data-ex-id="{{ f.instance.pk }}"{% endif %}
+               draggable="true">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div class="d-flex align-items-center gap-2">
+                <div style="cursor:grab; user-select:none;">≡</div>
+                <div class="fw-semibold">Упражнение</div>
+              </div>
+
+              {% if f.instance.pk %}
+                <button type="button"
+                        class="btn btn-sm btn-outline-danger js-delete-saved"
+                        data-delete-url="{% url 'hattorihanzo_exercise_delete' f.instance.pk %}">
+                  Удалить
+                </button>
+              {% else %}
+                <button type="button" class="btn btn-sm btn-outline-danger js-remove-new">Удалить</button>
+              {% endif %}
+            </div>
+
+            <div class="mb-2">
+              {{ f.id }}
+              <span style="display:none;">{{ f.DELETE }}</span>
+              {{ f.exercise }}
+              {% for err in f.exercise.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+            </div>
+
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <div class="small text-muted mb-1">План</div>
+                {{ f.planned_reps }}
+                {% for err in f.planned_reps.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+              </div>
+              <div class="col-6">
+                <div class="small text-muted mb-1">Факт</div>
+                {{ f.actual_reps }}
+                {% for err in f.actual_reps.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+              </div>
+            </div>
+
+            <div class="mb-2">
+              <div class="small text-muted mb-1">Плюсы</div>
+              {{ f.pros }}
+            </div>
+
+            <div class="mb-0">
+              <div class="small text-muted mb-1">Минусы</div>
+              {{ f.cons }}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
       {% if formset.non_form_errors %}
         <div class="text-danger mb-2">{{ formset.non_form_errors }}</div>
       {% endif %}
@@ -104,8 +160,8 @@
         <a class="btn btn-outline-danger" href="{% url 'hattorihanzo_session_delete' session.id %}">Удалить тренировку</a>
       </div>
 
-      {# template для новой строки (не сохранена, data-ex-id нет) #}
-      <template id="row-template">
+      {# templates for new rows (table + card), use __prefix__ #}
+      <template id="row-template-table">
         <tr class="formset-row" draggable="true">
           <td class="text-center" style="cursor:grab; user-select:none;">≡</td>
           <td>
@@ -123,6 +179,45 @@
         </tr>
       </template>
 
+      <template id="row-template-card">
+        <div class="card p-3 mb-2 formset-card" draggable="true">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="d-flex align-items-center gap-2">
+              <div style="cursor:grab; user-select:none;">≡</div>
+              <div class="fw-semibold">Упражнение</div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-danger js-remove-new">Удалить</button>
+          </div>
+
+          <div class="mb-2">
+            {{ formset.empty_form.id }}
+            <span style="display:none;">{{ formset.empty_form.DELETE }}</span>
+            {{ formset.empty_form.exercise }}
+          </div>
+
+          <div class="row g-2 mb-2">
+            <div class="col-6">
+              <div class="small text-muted mb-1">План</div>
+              {{ formset.empty_form.planned_reps }}
+            </div>
+            <div class="col-6">
+              <div class="small text-muted mb-1">Факт</div>
+              {{ formset.empty_form.actual_reps }}
+            </div>
+          </div>
+
+          <div class="mb-2">
+            <div class="small text-muted mb-1">Плюсы</div>
+            {{ formset.empty_form.pros }}
+          </div>
+
+          <div class="mb-0">
+            <div class="small text-muted mb-1">Минусы</div>
+            {{ formset.empty_form.cons }}
+          </div>
+        </div>
+      </template>
+
     </form>
   </div>
 
@@ -131,10 +226,15 @@
 <script>
 (function () {
   const addBtn = document.getElementById("add-row-btn");
-  const body = document.getElementById("formset-body");
-  const totalForms = document.querySelector('[name$="-TOTAL_FORMS"]');
-  const tpl = document.getElementById("row-template");
   const statusEl = document.getElementById("reorder-status");
+
+  const totalForms = document.querySelector('[name$="-TOTAL_FORMS"]');
+
+  const tableBody = document.getElementById("formset-body-table");
+  const cardsWrap = document.getElementById("formset-cards");
+
+  const tplTable = document.getElementById("row-template-table");
+  const tplCard = document.getElementById("row-template-card");
 
   function getCsrf() {
     const el = document.querySelector('input[name="csrfmiddlewaretoken"]');
@@ -146,90 +246,95 @@
     statusEl.textContent = text || "";
   }
 
-  // ---------------- add new row ----------------
+  function isMobile() {
+    return window.matchMedia("(max-width: 767.98px)").matches;
+  }
+
+  // ----- add row -----
   function addRow() {
     const index = parseInt(totalForms.value, 10);
-    let html = tpl.innerHTML;
-    html = html.replaceAll("__prefix__", String(index));
-    body.insertAdjacentHTML("beforeend", html);
+
+    if (isMobile()) {
+      let html = tplCard.innerHTML.replaceAll("__prefix__", String(index));
+      cardsWrap.insertAdjacentHTML("beforeend", html);
+    } else {
+      let html = tplTable.innerHTML.replaceAll("__prefix__", String(index));
+      tableBody.insertAdjacentHTML("beforeend", html);
+    }
+
     totalForms.value = index + 1;
   }
 
-  if (addBtn && body && totalForms && tpl) {
+  if (addBtn && totalForms && tplTable && tplCard && tableBody && cardsWrap) {
     addBtn.addEventListener("click", addRow);
   }
 
-  // ---------------- remove NEW (unsaved) row ----------------
-  function removeNewRow(tr) {
-    // для новых строк (без instance pk) можно реально удалить из DOM и уменьшить TOTAL_FORMS,
-    // иначе Django будет ожидать эти индексы и ругаться.
-    tr.remove();
-    const currentTotal = parseInt(totalForms.value, 10);
-    if (currentTotal > 0) totalForms.value = currentTotal - 1;
-  }
-
-  // ---------------- delete SAVED row (ideal) ----------------
-  async function deleteSavedRow(tr, url) {
-    // 1) пометить DELETE, чтобы formset при сохранении не валидировал поля этой формы
-    const delInput = tr.querySelector('input[type="checkbox"][name$="-DELETE"]');
+  // ----- delete saved immediately (ideal) -----
+  async function deleteSaved(el, url) {
+    // mark DELETE for formset, hide element but keep in DOM
+    const delInput = el.querySelector('input[type="checkbox"][name$="-DELETE"]');
     if (delInput) delInput.checked = true;
 
-    // 2) скрыть строку (НЕ удалять из DOM!)
-    tr.style.display = "none";
+    el.style.display = "none";
 
-    // 3) удалить на сервере сразу
     try {
       const resp = await fetch(url, {
         method: "POST",
         headers: { "X-CSRFToken": getCsrf() },
       });
-
       if (!resp.ok) throw new Error("bad_response");
 
-      // 4) после удаления можно уплотнить порядок оставшихся (не обязательно, но полезно)
       await persistOrder();
-
     } catch (e) {
-      // откат если ошибка
       if (delInput) delInput.checked = false;
-      tr.style.display = "";
+      el.style.display = "";
       window.location.reload();
     }
   }
 
-  // ---------------- click handlers ----------------
-  document.addEventListener("click", (e) => {
-    const btnNew = e.target.closest(".js-remove-new");
-    if (btnNew) {
-      e.preventDefault();
-      const tr = btnNew.closest("tr.formset-row");
-      if (tr) removeNewRow(tr);
-      return;
-    }
+  // ----- remove new row -----
+  function removeNew(el) {
+    el.remove();
+    const currentTotal = parseInt(totalForms.value, 10);
+    if (currentTotal > 0) totalForms.value = currentTotal - 1;
+  }
 
+  document.addEventListener("click", (e) => {
     const btnSaved = e.target.closest(".js-delete-saved");
     if (btnSaved) {
       e.preventDefault();
-      const tr = btnSaved.closest("tr.formset-row");
       const url = btnSaved.getAttribute("data-delete-url");
-      if (tr && url) deleteSavedRow(tr, url);
+      if (!url) return;
+
+      // row can be <tr> or <div.card>
+      const row = btnSaved.closest("tr.formset-row") || btnSaved.closest(".formset-card");
+      if (row) deleteSaved(row, url);
+      return;
+    }
+
+    const btnNew = e.target.closest(".js-remove-new");
+    if (btnNew) {
+      e.preventDefault();
+      const row = btnNew.closest("tr.formset-row") || btnNew.closest(".formset-card");
+      if (row) removeNew(row);
       return;
     }
   });
 
-  // ---------------- drag & drop reorder ----------------
-  let draggedRow = null;
+  // ----- reorder -----
+  let dragged = null;
 
-  function currentSavedIdsInDomOrder() {
-    return Array.from(body.querySelectorAll("tr[data-ex-id]"))
-      .filter(tr => tr.style.display !== "none") // не учитываем скрытые удалённые
-      .map(tr => tr.getAttribute("data-ex-id"))
+  function currentSavedIds() {
+    const container = isMobile() ? cardsWrap : tableBody;
+    return Array.from(container.querySelectorAll("[data-ex-id]"))
+      .filter(el => el.style.display !== "none")
+      .map(el => el.getAttribute("data-ex-id"))
       .filter(Boolean)
       .map(x => parseInt(x, 10));
   }
 
   async function persistOrder() {
-    const ids = currentSavedIdsInDomOrder();
+    const ids = currentSavedIds();
     if (ids.length < 2) return;
 
     setStatus("Сохраняю порядок…");
@@ -253,33 +358,32 @@
   }
 
   function onDragStart(e) {
-    const tr = e.target.closest("tr.formset-row");
-    if (!tr) return;
-
-    draggedRow = tr;
-    tr.classList.add("opacity-50");
+    const row = e.target.closest("tr.formset-row") || e.target.closest(".formset-card");
+    if (!row || row.style.display === "none") return;
+    dragged = row;
+    row.classList.add("opacity-50");
     e.dataTransfer.effectAllowed = "move";
   }
 
   function onDragEnd(e) {
-    const tr = e.target.closest("tr.formset-row");
-    if (tr) tr.classList.remove("opacity-50");
-    draggedRow = null;
+    const row = e.target.closest("tr.formset-row") || e.target.closest(".formset-card");
+    if (row) row.classList.remove("opacity-50");
+    dragged = null;
   }
 
   function onDragOver(e) {
     e.preventDefault();
-    const target = e.target.closest("tr.formset-row");
-    if (!target || !draggedRow || target === draggedRow) return;
-
-    // не даём вставлять относительно скрытых удалённых строк
-    if (target.style.display === "none" || draggedRow.style.display === "none") return;
+    const container = isMobile() ? cardsWrap : tableBody;
+    const target = e.target.closest("tr.formset-row") || e.target.closest(".formset-card");
+    if (!container.contains(target)) return;
+    if (!target || !dragged || target === dragged) return;
+    if (target.style.display === "none" || dragged.style.display === "none") return;
 
     const rect = target.getBoundingClientRect();
     const isAfter = (e.clientY - rect.top) > rect.height / 2;
 
-    if (isAfter) target.after(draggedRow);
-    else target.before(draggedRow);
+    if (isAfter) target.after(dragged);
+    else target.before(dragged);
   }
 
   function onDrop(e) {
@@ -287,10 +391,20 @@
     persistOrder();
   }
 
-  body.addEventListener("dragstart", onDragStart);
-  body.addEventListener("dragend", onDragEnd);
-  body.addEventListener("dragover", onDragOver);
-  body.addEventListener("drop", onDrop);
+  // attach DnD on both containers (safe)
+  tableBody.addEventListener("dragstart", onDragStart);
+  tableBody.addEventListener("dragend", onDragEnd);
+  tableBody.addEventListener("dragover", onDragOver);
+  tableBody.addEventListener("drop", onDrop);
+
+  cardsWrap.addEventListener("dragstart", onDragStart);
+  cardsWrap.addEventListener("dragend", onDragEnd);
+  cardsWrap.addEventListener("dragover", onDragOver);
+  cardsWrap.addEventListener("drop", onDrop);
+
+  // NOTE: как и в create, добавляем строки только в текущую версию (mobile или desktop).
+  // Если ты добавишь строку на мобиле и развернёшь экран — в таблице её не будет.
+  // На практике это ок. Если хочешь супер-идеально — сделаем "единый DOM + перерисовка".
 })();
 </script>
 {% endblock %}
