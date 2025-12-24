@@ -1,5 +1,6 @@
 import json
 from datetime import date as dt_date
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.http import require_POST
@@ -173,6 +174,7 @@ def edit_result(request, event_id, pk):
 
     return render(request, 'results/edit_result.html', {'event': event, 'form': form})
 
+
 @login_required
 @permission_required('results.delete_disciplineresult', raise_exception=True)  # <—
 def delete_result(request, event_id, pk):
@@ -209,7 +211,7 @@ def custom_logout(request):
     return redirect('/')
 
 
-@login_required
+@staff_member_required
 def hattorihanzo(request):
     selected_date = parse_date(request.GET.get("date") or "") or dt_date.today()
 
@@ -248,7 +250,7 @@ def hattorihanzo(request):
     )
 
 
-@login_required
+@staff_member_required
 def hattorihanzo_session_edit(request, pk: int):
     session = get_object_or_404(PuppyTrainingSession, pk=pk)
 
@@ -275,7 +277,7 @@ def hattorihanzo_session_edit(request, pk: int):
     )
 
 
-@login_required
+@staff_member_required
 def hattorihanzo_session_delete(request, pk: int):
     session = get_object_or_404(PuppyTrainingSession, pk=pk)
 
@@ -291,7 +293,7 @@ def hattorihanzo_session_delete(request, pk: int):
     )
 
 
-@login_required
+@staff_member_required
 @require_POST
 def hattorihanzo_exercise_delete(request, pk: int):
     ex = get_object_or_404(PuppyTrainingExercise, pk=pk)
@@ -300,7 +302,7 @@ def hattorihanzo_exercise_delete(request, pk: int):
     return redirect("hattorihanzo_session_edit", pk=session_id)
 
 
-@login_required
+@staff_member_required
 @require_POST
 def hattorihanzo_exercises_reorder(request, pk: int):
     """
