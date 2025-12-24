@@ -30,7 +30,7 @@
 
       <div class="d-flex align-items-center justify-content-between mt-3">
         <h6 class="mb-0">Упражнения</h6>
-        <button type="button" class="btn btn-sm btn-outline-primary" id="add-row-btn">+ Добавить ещё строку</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="add-row-btn">+ Добавить упражнение</button>
       </div>
 
       {{ formset.management_form }}
@@ -223,7 +223,7 @@
         </table>
       </div>
 
-      {# ======= MOBILE VIEW: CARDS with clamp + expand (variant 1) ======= #}
+      {# ======= MOBILE VIEW: CARDS with clamp + expand ======= #}
       <div class="mt-2 d-block d-md-none">
         {% for e in s.exercises.all %}
           <div class="card p-3 mb-2">
@@ -268,7 +268,6 @@
 (function () {
   // ---------------- create form add/remove rows ----------------
   const addBtn = document.getElementById("add-row-btn");
-
   const totalForms = document.querySelector('[name$="-TOTAL_FORMS"]');
 
   const tableBody = document.getElementById("formset-body-table");
@@ -281,18 +280,40 @@
     return window.matchMedia("(max-width: 767.98px)").matches;
   }
 
+  // ===== FIX: disable inputs in hidden layout to avoid duplicated field names in POST =====
+  function setDisabled(rootEl, disabled) {
+    if (!rootEl) return;
+    rootEl.querySelectorAll("input, select, textarea").forEach((el) => {
+      el.disabled = disabled;
+    });
+  }
+
+  function syncLayoutInputs() {
+    // На мобиле активны cards, на десктопе активна table.
+    if (isMobile()) {
+      setDisabled(tableBody, true);
+      setDisabled(cardsWrap, false);
+    } else {
+      setDisabled(cardsWrap, true);
+      setDisabled(tableBody, false);
+    }
+  }
+
   function addRow() {
     const index = parseInt(totalForms.value, 10);
 
     if (isMobile()) {
-      let html = tplCard.innerHTML.replaceAll("__prefix__", String(index));
+      const html = tplCard.innerHTML.replaceAll("__prefix__", String(index));
       cardsWrap.insertAdjacentHTML("beforeend", html);
     } else {
-      let html = tplTable.innerHTML.replaceAll("__prefix__", String(index));
+      const html = tplTable.innerHTML.replaceAll("__prefix__", String(index));
       tableBody.insertAdjacentHTML("beforeend", html);
     }
 
     totalForms.value = index + 1;
+
+    // важно: новая строка должна соответствовать текущему режиму enabled/disabled
+    syncLayoutInputs();
   }
 
   function removeRow(btn) {
@@ -308,6 +329,8 @@
 
     const currentTotal = parseInt(totalForms.value, 10);
     if (currentTotal > 0) totalForms.value = currentTotal - 1;
+
+    syncLayoutInputs();
   }
 
   if (addBtn && totalForms && tplTable && tplCard && tableBody && cardsWrap) {
@@ -322,6 +345,41 @@
     }
   });
 
+  // первичная синхронизация + при смене ориентации/ширины
+  syncLayoutInputs();
+  window.addEventListener("resize", syncLayoutInputs);
+
+  // ---------------- auto-fill planned reps from Exercise.default_reps (via endpoint) ----------------
+  document.addEventListener("change", async (e) => {
+    const select = e.target.closest(".js-exercise-select");
+    if (!select) return;
+
+    const exId = select.value;
+    if (!exId) return;
+
+    const container = select.closest("tr.formset-row") || select.closest(".formset-card");
+    if (!container) return;
+
+    const planned = container.querySelector('input[name$="-planned_reps"]');
+    if (!planned) return;
+
+    // не перетираем ручной ввод
+    if (planned.value) return;
+
+    try {
+      const resp = await fetch(`/hattorihanzo/exercises/${exId}/default-reps/`, {
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      });
+      if (!resp.ok) throw new Error("bad_response");
+      const data = await resp.json();
+      if (data.default_reps !== undefined && data.default_reps !== null) {
+        planned.value = String(data.default_reps);
+      }
+    } catch (err) {
+      // молча
+    }
+  });
+
   // ---------------- mobile clamp expand/collapse (pros/cons) ----------------
   function applyClamp(el, lines) {
     el.style.setProperty("--hhz-lines", String(lines));
@@ -329,9 +387,8 @@
   }
 
   function isOverflowing(el) {
-    // Для line-clamp scrollHeight часто == clientHeight в некоторых браузерах.
-    // Поэтому сравниваем "реальную" высоту без clamp через временное снятие.
     const was = el.classList.contains("hhz-expanded");
+
     el.classList.remove("hhz-expanded");
     const clampedH = el.getBoundingClientRect().height;
 
@@ -352,13 +409,11 @@
       const btn = block.parentElement.querySelector(".js-toggle-clamp");
       if (!btn) return;
 
-      // если текст пустой — кнопку не показываем
       if (!block.textContent || block.textContent.trim().length === 0) {
         btn.style.display = "none";
         return;
       }
 
-      // Показывать кнопку только если реально есть что разворачивать
       if (isOverflowing(block)) {
         btn.style.display = "inline-block";
         btn.textContent = "Показать полностью";
@@ -380,12 +435,9 @@
     btn.textContent = expanded ? "Свернуть" : "Показать полностью";
   });
 
-  // Инициализация при загрузке
   initClampBlocks();
 
-  // Если пользователь повернул экран — пересчитаем необходимость кнопок
   window.addEventListener("resize", () => {
-    // только на мобиле это нужно, но можно и без проверки
     initClampBlocks();
   });
 })();

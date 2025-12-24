@@ -1,7 +1,8 @@
 # results/admin.py
 
 from django.contrib import admin
-from .models import Event, DisciplineType, Athlete, DisciplineResult, PuppyTrainingSession, PuppyTrainingExercise
+from .models import Event, DisciplineType, Athlete, DisciplineResult, PuppyTrainingSession, PuppyTrainingExercise, \
+    Exercise
 
 
 @admin.register(Event)
@@ -41,3 +42,9 @@ class PuppyTrainingSessionAdmin(admin.ModelAdmin):
     list_display = ("date", "start_time", "end_time", "notes")
     list_filter = ("date",)
     inlines = [PuppyTrainingExerciseInline]
+
+
+@admin.register(Exercise)
+class ExerciseAdmin(admin.ModelAdmin):
+    list_display = ("name", "default_reps", "created_at")
+    search_fields = ("name",)

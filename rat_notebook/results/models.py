@@ -103,6 +103,22 @@ class PuppyTrainingSession(models.Model):
         return f"{self.date} {self.start_time}-{self.end_time}"
 
 
+class Exercise(models.Model):
+    name = models.CharField("Название", max_length=200, unique=True)
+    description = models.TextField("Описание", blank=True)
+    default_reps = models.PositiveIntegerField("План по умолчанию", default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Упражнение"
+        verbose_name_plural = "Упражнения"
+
+    def __str__(self):
+        return self.name
+
+
 class PuppyTrainingExercise(models.Model):
     session = models.ForeignKey(
         PuppyTrainingSession,
@@ -110,7 +126,12 @@ class PuppyTrainingExercise(models.Model):
         related_name="exercises",
     )
 
-    exercise = models.CharField("Упражнение", max_length=200)
+    exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.PROTECT,
+        related_name="training_exercises",
+        verbose_name="Упражнение",
+    )
     planned_reps = models.PositiveIntegerField("План (повторения)")
     actual_reps = models.PositiveIntegerField("Факт (повторения)")
     pros = models.TextField("Плюсы", blank=True)
@@ -122,7 +143,7 @@ class PuppyTrainingExercise(models.Model):
         ordering = ["position", "id"]
 
     def __str__(self):
-        return self.exercise
+        return self.exercise.name
 
     def save(self, *args, **kwargs):
         if not self.position:

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>База упражнений</h2>
+    <a href="{% url 'exercise_create' %}" class="btn btn-primary">Добавить упражнение</a>
+  </div>
+
+  <table class="table table-sm table-striped">
+    <thead>
+      <tr>
+        <th>Название</th>
+        <th>План по умолчанию</th>
+        <th>Описание</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in exercises %}
+        <tr>
+          <td class="fw-semibold">{{ e.name }}</td>
+          <td>{{ e.default_reps }}</td>
+          <td class="text-muted">{{ e.description }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="3" class="text-muted">Упражнений пока нет</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</div>
+{% endblock %}

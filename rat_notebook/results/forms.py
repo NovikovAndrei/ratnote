@@ -2,7 +2,8 @@ from django import forms
 from django.core.exceptions import ValidationError
 from .models import Athlete, DisciplineResult, Event
 from django.forms import inlineformset_factory
-from .models import PuppyTrainingSession, PuppyTrainingExercise
+from django.forms.widgets import Select
+from .models import PuppyTrainingSession, PuppyTrainingExercise, Exercise
 
 
 class LoginForm(forms.Form):
@@ -177,31 +178,73 @@ class PuppyTrainingSessionForm(forms.ModelForm):
         return cleaned
 
 
+class ExerciseSelect(Select):
+    def create_option(
+        self, name, value, label, selected, index, subindex=None, attrs=None
+    ):
+        option = super().create_option(
+            name, value, label, selected, index, subindex=subindex, attrs=attrs
+        )
+
+        # value может быть '', ModelChoiceIteratorValue или id
+        ex_id = getattr(value, "value", value)
+        try:
+            ex_id = int(ex_id)
+        except (TypeError, ValueError):
+            return option
+
+        ex = self.choices.queryset.filter(pk=ex_id).only("default_reps").first()
+        if ex and ex.default_reps is not None:
+            option["attrs"]["data-default-reps"] = str(ex.default_reps)
+
+        return option
+
+
 class PuppyTrainingExerciseForm(forms.ModelForm):
     class Meta:
         model = PuppyTrainingExercise
         fields = ["exercise", "planned_reps", "actual_reps", "pros", "cons"]
         widgets = {
-            "exercise": forms.TextInput(attrs={"class": "form-control"}),
             "planned_reps": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
             "actual_reps": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
             "pros": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
             "cons": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["exercise"].queryset = Exercise.objects.order_by("name")
+        self.fields["exercise"].empty_label = "выбери упражнение"
+
+        # чтобы было как bootstrap select
+        cls = self.fields["exercise"].widget.attrs.get("class", "")
+        self.fields["exercise"].widget.attrs["class"] = (cls + " form-select js-exercise-select").strip()
+
 
 PuppyTrainingExerciseCreateFormSet = inlineformset_factory(
     parent_model=PuppyTrainingSession,
     model=PuppyTrainingExercise,
     form=PuppyTrainingExerciseForm,
-    extra=1,          # на создании пусть будет 1 пустая строка
-    can_delete=False, # чекбокс удаления нам не нужен
+    extra=1,           # на создании пусть будет 1 пустая строка
+    can_delete=False,  # чекбокс удаления нам не нужен
 )
 
 PuppyTrainingExerciseEditFormSet = inlineformset_factory(
     parent_model=PuppyTrainingSession,
     model=PuppyTrainingExercise,
     form=PuppyTrainingExerciseForm,
-    extra=0,          # на редактировании НЕ показываем пустую строку
+    extra=0,           # на редактировании НЕ показываем пустую строку
     can_delete=True,
 )
+
+
+class ExerciseForm(forms.ModelForm):
+    class Meta:
+        model = Exercise
+        fields = ["name", "description", "default_reps"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+            "description": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+            "default_reps": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+        }

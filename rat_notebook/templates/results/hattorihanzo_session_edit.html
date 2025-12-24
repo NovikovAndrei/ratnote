@@ -250,19 +250,40 @@
     return window.matchMedia("(max-width: 767.98px)").matches;
   }
 
+  // ===== FIX: disable inputs in hidden layout to avoid duplicated field names in POST =====
+  function setDisabled(rootEl, disabled) {
+    if (!rootEl) return;
+    rootEl.querySelectorAll("input, select, textarea").forEach((el) => {
+      el.disabled = disabled;
+    });
+  }
+
+  function syncLayoutInputs() {
+    if (isMobile()) {
+      setDisabled(tableBody, true);
+      setDisabled(cardsWrap, false);
+    } else {
+      setDisabled(cardsWrap, true);
+      setDisabled(tableBody, false);
+    }
+  }
+
   // ----- add row -----
   function addRow() {
     const index = parseInt(totalForms.value, 10);
 
     if (isMobile()) {
-      let html = tplCard.innerHTML.replaceAll("__prefix__", String(index));
+      const html = tplCard.innerHTML.replaceAll("__prefix__", String(index));
       cardsWrap.insertAdjacentHTML("beforeend", html);
     } else {
-      let html = tplTable.innerHTML.replaceAll("__prefix__", String(index));
+      const html = tplTable.innerHTML.replaceAll("__prefix__", String(index));
       tableBody.insertAdjacentHTML("beforeend", html);
     }
 
     totalForms.value = index + 1;
+
+    // новая строка должна соответствовать enabled/disabled
+    syncLayoutInputs();
   }
 
   if (addBtn && totalForms && tplTable && tplCard && tableBody && cardsWrap) {
@@ -271,11 +292,11 @@
 
   // ----- delete saved immediately (ideal) -----
   async function deleteSaved(el, url) {
-    // mark DELETE for formset, hide element but keep in DOM
     const delInput = el.querySelector('input[type="checkbox"][name$="-DELETE"]');
     if (delInput) delInput.checked = true;
 
     el.style.display = "none";
+    syncLayoutInputs();
 
     try {
       const resp = await fetch(url, {
@@ -288,6 +309,7 @@
     } catch (e) {
       if (delInput) delInput.checked = false;
       el.style.display = "";
+      syncLayoutInputs();
       window.location.reload();
     }
   }
@@ -297,6 +319,7 @@
     el.remove();
     const currentTotal = parseInt(totalForms.value, 10);
     if (currentTotal > 0) totalForms.value = currentTotal - 1;
+    syncLayoutInputs();
   }
 
   document.addEventListener("click", (e) => {
@@ -306,7 +329,6 @@
       const url = btnSaved.getAttribute("data-delete-url");
       if (!url) return;
 
-      // row can be <tr> or <div.card>
       const row = btnSaved.closest("tr.formset-row") || btnSaved.closest(".formset-card");
       if (row) deleteSaved(row, url);
       return;
@@ -318,6 +340,40 @@
       const row = btnNew.closest("tr.formset-row") || btnNew.closest(".formset-card");
       if (row) removeNew(row);
       return;
+    }
+  });
+
+  // первичная синхронизация + при смене ориентации/ширины
+  syncLayoutInputs();
+  window.addEventListener("resize", syncLayoutInputs);
+
+  // ---------------- auto-fill planned reps from Exercise.default_reps (via endpoint) ----------------
+  document.addEventListener("change", async (e) => {
+    const select = e.target.closest(".js-exercise-select");
+    if (!select) return;
+
+    const exId = select.value;
+    if (!exId) return;
+
+    const container = select.closest("tr.formset-row") || select.closest(".formset-card");
+    if (!container) return;
+
+    const planned = container.querySelector('input[name$="-planned_reps"]');
+    if (!planned) return;
+
+    if (planned.value) return;
+
+    try {
+      const resp = await fetch(`/hattorihanzo/exercises/${exId}/default-reps/`, {
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      });
+      if (!resp.ok) throw new Error("bad_response");
+      const data = await resp.json();
+      if (data.default_reps !== undefined && data.default_reps !== null) {
+        planned.value = String(data.default_reps);
+      }
+    } catch (err) {
+      // молча
     }
   });
 
@@ -391,7 +447,6 @@
     persistOrder();
   }
 
-  // attach DnD on both containers (safe)
   tableBody.addEventListener("dragstart", onDragStart);
   tableBody.addEventListener("dragend", onDragEnd);
   tableBody.addEventListener("dragover", onDragOver);
@@ -401,10 +456,6 @@
   cardsWrap.addEventListener("dragend", onDragEnd);
   cardsWrap.addEventListener("dragover", onDragOver);
   cardsWrap.addEventListener("drop", onDrop);
-
-  // NOTE: как и в create, добавляем строки только в текущую версию (mobile или desktop).
-  // Если ты добавишь строку на мобиле и развернёшь экран — в таблице её не будет.
-  // На практике это ок. Если хочешь супер-идеально — сделаем "единый DOM + перерисовка".
 })();
 </script>
 {% endblock %}

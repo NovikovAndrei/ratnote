@@ -3,15 +3,15 @@ from datetime import date as dt_date
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth import authenticate, login, logout
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.db import transaction
 from django.utils.dateparse import parse_date
-from .models import Event, DisciplineResult, PuppyTrainingSession, PuppyTrainingExercise
+from .models import Event, DisciplineResult, PuppyTrainingSession, PuppyTrainingExercise, Exercise
 from .forms import AthleteForm, DisciplineResultForm, EventForm, LoginForm, PuppyTrainingSessionForm, \
-    PuppyTrainingExerciseCreateFormSet, PuppyTrainingExerciseEditFormSet
+    PuppyTrainingExerciseCreateFormSet, PuppyTrainingExerciseEditFormSet, ExerciseForm
 from .scoring import assign_growth_scores, compute_final_places
 
 
@@ -331,3 +331,33 @@ def hattorihanzo_exercises_reorder(request, pk: int):
             PuppyTrainingExercise.objects.filter(id=ex_id, session=session).update(position=pos)
 
     return JsonResponse({"ok": True})
+
+
+@staff_member_required
+def exercise_list(request):
+    exercises = Exercise.objects.all()
+    return render(request, "results/exercises_list.html", {
+        "exercises": exercises,
+    })
+
+
+@staff_member_required
+def exercise_create(request):
+    if request.method == "POST":
+        form = ExerciseForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect("exercise_list")
+    else:
+        form = ExerciseForm()
+
+    return render(request, "results/exercise_form.html", {
+        "form": form,
+    })
+
+
+@staff_member_required
+@require_GET
+def exercise_default_reps(request, pk: int):
+    ex = get_object_or_404(Exercise, pk=pk)
+    return JsonResponse({"default_reps": ex.default_reps})
