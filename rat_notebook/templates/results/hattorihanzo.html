@@ -12,7 +12,7 @@
   </div>
 
   <div class="card p-3 mb-4">
-    <h5 class="mb-3">Добавить тренировку (с упражнениями)</h5>
+    <h5 class="mb-3">Добавить тренировку</h5>
 
     <form method="post" id="session-create-form">
       {% csrf_token %}
@@ -195,7 +195,8 @@
         </div>
       </div>
 
-      <div class="table-responsive mt-2">
+      {# ======= DESKTOP VIEW: TABLE (как было) ======= #}
+      <div class="table-responsive mt-2 d-none d-md-block">
         <table class="table table-sm mb-0">
           <thead>
             <tr>
@@ -221,6 +222,41 @@
           </tbody>
         </table>
       </div>
+
+      {# ======= MOBILE VIEW: CARDS with clamp + expand (variant 1) ======= #}
+      <div class="mt-2 d-block d-md-none">
+        {% for e in s.exercises.all %}
+          <div class="card p-3 mb-2">
+            <div class="fw-semibold mb-2">{{ e.exercise }}</div>
+
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <div class="small text-muted">План</div>
+                <div>{{ e.planned_reps }}</div>
+              </div>
+              <div class="col-6">
+                <div class="small text-muted">Факт</div>
+                <div>{{ e.actual_reps }}</div>
+              </div>
+            </div>
+
+            <div class="mb-2">
+              <div class="small text-muted mb-1">Плюсы</div>
+              <div class="hhz-clamp js-clamp" data-clamp-lines="3" style="white-space:pre-wrap;">{{ e.pros }}</div>
+              <button type="button" class="btn btn-link btn-sm p-0 js-toggle-clamp" style="display:none;">Показать полностью</button>
+            </div>
+
+            <div class="mb-0">
+              <div class="small text-muted mb-1">Минусы</div>
+              <div class="hhz-clamp js-clamp" data-clamp-lines="3" style="white-space:pre-wrap;">{{ e.cons }}</div>
+              <button type="button" class="btn btn-link btn-sm p-0 js-toggle-clamp" style="display:none;">Показать полностью</button>
+            </div>
+          </div>
+        {% empty %}
+          <div class="text-muted">Упражнений нет</div>
+        {% endfor %}
+      </div>
+
     </div>
   {% empty %}
     <div class="text-muted">Нет тренировок за эту дату.</div>
@@ -230,6 +266,7 @@
 
 <script>
 (function () {
+  // ---------------- create form add/remove rows ----------------
   const addBtn = document.getElementById("add-row-btn");
 
   const totalForms = document.querySelector('[name$="-TOTAL_FORMS"]');
@@ -246,17 +283,6 @@
 
   function addRow() {
     const index = parseInt(totalForms.value, 10);
-
-    // добавляем СРАЗУ в обе версии (и table, и cards),
-    // чтобы при смене ориентации/ширины ничего не ломалось.
-    // Но поля дублировать нельзя — поэтому одну версию держим "мертвой":
-    // мы будем клонировать только видимую часть, а во второй хранить пустой контейнер.
-    // В нашем случае проще: всегда добавляем и в таблицу, и в карточки,
-    // но ВАЖНО: одна из версий скрыта через d-none/d-md-block, т.е. inputs всё равно в DOM.
-    // Это значит: ДУБЛЬ input'ов будет отправляться! => так нельзя.
-    //
-    // Поэтому здесь добавляем ТОЛЬКО в ту версию, которая сейчас видима.
-    // Это безопасно и соответствует UX.
 
     if (isMobile()) {
       let html = tplCard.innerHTML.replaceAll("__prefix__", String(index));
@@ -296,11 +322,72 @@
     }
   });
 
-  // ВАЖНОЕ ограничение:
-  // Мы добавляем строки только в текущий вид (mobile или desktop).
-  // Если пользователь добавил строки на мобиле, а потом развернул экран — он их не увидит в таблице.
-  // Это редкий кейс. Если хочешь полностью идеальный вариант с переключением вида,
-  // надо делать единый DOM и переставлять верстку без дублирования полей.
+  // ---------------- mobile clamp expand/collapse (pros/cons) ----------------
+  function applyClamp(el, lines) {
+    el.style.setProperty("--hhz-lines", String(lines));
+    el.classList.add("hhz-clamp");
+  }
+
+  function isOverflowing(el) {
+    // Для line-clamp scrollHeight часто == clientHeight в некоторых браузерах.
+    // Поэтому сравниваем "реальную" высоту без clamp через временное снятие.
+    const was = el.classList.contains("hhz-expanded");
+    el.classList.remove("hhz-expanded");
+    const clampedH = el.getBoundingClientRect().height;
+
+    el.classList.add("hhz-expanded");
+    const fullH = el.getBoundingClientRect().height;
+
+    if (!was) el.classList.remove("hhz-expanded"); else el.classList.add("hhz-expanded");
+
+    return fullH > clampedH + 1;
+  }
+
+  function initClampBlocks() {
+    const blocks = document.querySelectorAll(".js-clamp");
+    blocks.forEach((block) => {
+      const lines = parseInt(block.getAttribute("data-clamp-lines") || "3", 10);
+      applyClamp(block, lines);
+
+      const btn = block.parentElement.querySelector(".js-toggle-clamp");
+      if (!btn) return;
+
+      // если текст пустой — кнопку не показываем
+      if (!block.textContent || block.textContent.trim().length === 0) {
+        btn.style.display = "none";
+        return;
+      }
+
+      // Показывать кнопку только если реально есть что разворачивать
+      if (isOverflowing(block)) {
+        btn.style.display = "inline-block";
+        btn.textContent = "Показать полностью";
+      } else {
+        btn.style.display = "none";
+      }
+    });
+  }
+
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".js-toggle-clamp");
+    if (!btn) return;
+
+    e.preventDefault();
+    const block = btn.parentElement.querySelector(".js-clamp");
+    if (!block) return;
+
+    const expanded = block.classList.toggle("hhz-expanded");
+    btn.textContent = expanded ? "Свернуть" : "Показать полностью";
+  });
+
+  // Инициализация при загрузке
+  initClampBlocks();
+
+  // Если пользователь повернул экран — пересчитаем необходимость кнопок
+  window.addEventListener("resize", () => {
+    // только на мобиле это нужно, но можно и без проверки
+    initClampBlocks();
+  });
 })();
 </script>
 {% endblock %}

@@ -229,3 +229,17 @@ a.link-plain:hover { text-decoration:underline; }
     margin-top: 20px;
   }
 }
+
+/* Hattori Hanzo: clamp for long pros/cons on mobile list */
+.hhz-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--hhz-lines, 3);
+  overflow: hidden;
+}
+
+.hhz-expanded {
+  -webkit-line-clamp: unset !important;
+  overflow: visible;
+  display: block; /* на всякий, чтобы нормально раскрывалось */
+}
