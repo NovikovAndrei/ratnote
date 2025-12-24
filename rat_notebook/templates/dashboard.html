@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <h2 class="mb-4 text-center">Панель администратора</h2>
+
+  <div class="row g-4">
+
+    <!-- СОРЕВНОВАНИЯ -->
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body d-flex flex-column">
+          <h5 class="card-title">🏆 Соревнования</h5>
+          <p class="card-text text-muted">
+            Управление ивентами, результатами и спортсменами
+          </p>
+          <a href="{% url 'event_list' %}" class="btn btn-primary mt-auto">
+            Перейти
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ДНЕВНИК ЩЕНКА -->
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body d-flex flex-column">
+          <h5 class="card-title">🐕 Дневник щенка</h5>
+          <p class="card-text text-muted">
+            Тренировки, упражнения и заметки
+          </p>
+          <a href="{% url 'hattorihanzo' %}" class="btn btn-primary mt-auto">
+            Перейти
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- БАЗА УПРАЖНЕНИЙ -->
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body d-flex flex-column">
+          <h5 class="card-title">🧠 База упражнений</h5>
+          <p class="card-text text-muted">
+            Справочник упражнений и стандартных повторов
+          </p>
+          <a href="{% url 'exercise_list' %}" class="btn btn-primary mt-auto">
+            Перейти
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

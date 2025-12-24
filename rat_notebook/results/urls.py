@@ -5,12 +5,13 @@ from .views import (
     login_view, custom_logout,
     hattorihanzo, hattorihanzo_session_edit, hattorihanzo_session_delete,
     hattorihanzo_exercise_delete, hattorihanzo_exercises_reorder,
-    exercise_list, exercise_create, exercise_default_reps
+    exercise_list, exercise_create, exercise_default_reps, dashboard
 )
 
 urlpatterns = [
     # Главная страница — форма логина
     path("", login_view, name="login"),
+    path("dashboard/", dashboard, name="dashboard"),
 
     # Список всех событий
     path("events/", event_list, name="event_list"),

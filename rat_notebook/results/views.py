@@ -361,3 +361,22 @@ def exercise_create(request):
 def exercise_default_reps(request, pk: int):
     ex = get_object_or_404(Exercise, pk=pk)
     return JsonResponse({"default_reps": ex.default_reps})
+
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect, render
+
+
+@login_required
+def dashboard(request):
+    """
+    Стартовая страница после логина.
+    Админ видит выбор разделов.
+    Обычный пользователь — старое поведение.
+    """
+    user = request.user
+
+    if not user.is_staff:
+        return redirect("event_list")
+
+    return render(request, "dashboard.html")
