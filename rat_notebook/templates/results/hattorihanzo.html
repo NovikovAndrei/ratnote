@@ -54,7 +54,13 @@
               <tr class="formset-row">
                 <td>
                   {{ f.id }}
-                  {{ f.exercise }}
+                  <div class="d-flex align-items-center gap-2">
+                    {{ f.exercise }}
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary js-ex-info"
+                            title="Описание"
+                            disabled>ℹ️</button>
+                  </div>
                   {% for err in f.exercise.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </td>
                 <td>
@@ -87,7 +93,13 @@
 
             <div class="mb-2">
               {{ f.id }}
-              {{ f.exercise }}
+              <div class="d-flex align-items-center gap-2">
+                {{ f.exercise }}
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary js-ex-info"
+                        title="Описание"
+                        disabled>ℹ️</button>
+              </div>
               {% for err in f.exercise.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
             </div>
 
@@ -126,7 +138,16 @@
       {# ======== templates for new rows (table + card), both use __prefix__ ======== #}
       <template id="row-template-table">
         <tr class="formset-row">
-          <td>{{ formset.empty_form.id }}{{ formset.empty_form.exercise }}</td>
+          <td>
+            {{ formset.empty_form.id }}
+            <div class="d-flex align-items-center gap-2">
+              {{ formset.empty_form.exercise }}
+              <button type="button"
+                      class="btn btn-sm btn-outline-secondary js-ex-info"
+                      title="Описание"
+                      disabled>ℹ️</button>
+            </div>
+          </td>
           <td>{{ formset.empty_form.planned_reps }}</td>
           <td>{{ formset.empty_form.actual_reps }}</td>
           <td>{{ formset.empty_form.pros }}</td>
@@ -146,7 +167,13 @@
 
           <div class="mb-2">
             {{ formset.empty_form.id }}
-            {{ formset.empty_form.exercise }}
+            <div class="d-flex align-items-center gap-2">
+              {{ formset.empty_form.exercise }}
+              <button type="button"
+                      class="btn btn-sm btn-outline-secondary js-ex-info"
+                      title="Описание"
+                      disabled>ℹ️</button>
+            </div>
           </div>
 
           <div class="row g-2 mb-2">
@@ -195,7 +222,7 @@
         </div>
       </div>
 
-      {# ======= DESKTOP VIEW: TABLE (как было) ======= #}
+      {# ======= DESKTOP VIEW: TABLE ======= #}
       <div class="table-responsive mt-2 d-none d-md-block">
         <table class="table table-sm mb-0">
           <thead>
@@ -210,7 +237,17 @@
           <tbody>
             {% for e in s.exercises.all %}
               <tr>
-                <td class="fw-semibold">{{ e.exercise }}</td>
+                <td class="fw-semibold">
+                  <div class="d-flex align-items-center gap-2">
+                    <span>{{ e.exercise }}</span>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary js-ex-info"
+                            title="Описание"
+                            data-exercise-id="{{ e.exercise_id }}"
+                            data-exercise-name="{{ e.exercise }}"
+                            {% if not e.exercise_id %}disabled{% endif %}>ℹ️</button>
+                  </div>
+                </td>
                 <td>{{ e.planned_reps }}</td>
                 <td>{{ e.actual_reps }}</td>
                 <td style="white-space:pre-wrap;">{{ e.pros }}</td>
@@ -227,7 +264,15 @@
       <div class="mt-2 d-block d-md-none">
         {% for e in s.exercises.all %}
           <div class="card p-3 mb-2">
-            <div class="fw-semibold mb-2">{{ e.exercise }}</div>
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="fw-semibold">{{ e.exercise }}</div>
+              <button type="button"
+                      class="btn btn-sm btn-outline-secondary js-ex-info"
+                      title="Описание"
+                      data-exercise-id="{{ e.exercise_id }}"
+                      data-exercise-name="{{ e.exercise }}"
+                      {% if not e.exercise_id %}disabled{% endif %}>ℹ️</button>
+            </div>
 
             <div class="row g-2 mb-2">
               <div class="col-6">
@@ -263,7 +308,26 @@
   {% endfor %}
 
 </div>
+{% endblock %}
 
+{% block page_html %}
+{# ===================== Exercise Info Modal (вынесена из container) ===================== #}
+<div class="modal fade" id="exerciseInfoModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exerciseInfoTitle">Упражнение</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div class="modal-body">
+        <div id="exerciseInfoBody" style="white-space:pre-wrap;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
 <script>
 (function () {
   // ---------------- create form add/remove rows ----------------
@@ -280,7 +344,6 @@
     return window.matchMedia("(max-width: 767.98px)").matches;
   }
 
-  // ===== FIX: disable inputs in hidden layout to avoid duplicated field names in POST =====
   function setDisabled(rootEl, disabled) {
     if (!rootEl) return;
     rootEl.querySelectorAll("input, select, textarea").forEach((el) => {
@@ -289,7 +352,6 @@
   }
 
   function syncLayoutInputs() {
-    // На мобиле активны cards, на десктопе активна table.
     if (isMobile()) {
       setDisabled(tableBody, true);
       setDisabled(cardsWrap, false);
@@ -297,6 +359,15 @@
       setDisabled(cardsWrap, true);
       setDisabled(tableBody, false);
     }
+  }
+
+  function syncInfoButtons(root = document) {
+    root.querySelectorAll(".js-exercise-select").forEach((select) => {
+      const container = select.closest("tr.formset-row") || select.closest(".formset-card");
+      if (!container) return;
+      const infoBtn = container.querySelector(".js-ex-info");
+      if (infoBtn) infoBtn.disabled = !select.value;
+    });
   }
 
   function addRow() {
@@ -312,8 +383,8 @@
 
     totalForms.value = index + 1;
 
-    // важно: новая строка должна соответствовать текущему режиму enabled/disabled
     syncLayoutInputs();
+    syncInfoButtons(); // ✅ включить/выключить ℹ️ у новой строки
   }
 
   function removeRow(btn) {
@@ -331,6 +402,7 @@
     if (currentTotal > 0) totalForms.value = currentTotal - 1;
 
     syncLayoutInputs();
+    syncInfoButtons();
   }
 
   if (addBtn && totalForms && tplTable && tplCard && tableBody && cardsWrap) {
@@ -342,28 +414,36 @@
     if (btn) {
       e.preventDefault();
       removeRow(btn);
+      return;
     }
   });
 
   // первичная синхронизация + при смене ориентации/ширины
   syncLayoutInputs();
-  window.addEventListener("resize", syncLayoutInputs);
+  syncInfoButtons();
 
-  // ---------------- auto-fill planned reps from Exercise.default_reps (via endpoint) ----------------
+  window.addEventListener("resize", () => {
+    syncLayoutInputs();
+    syncInfoButtons();
+  });
+
+  // ---------------- auto-fill planned reps + enable info button ----------------
   document.addEventListener("change", async (e) => {
     const select = e.target.closest(".js-exercise-select");
     if (!select) return;
 
-    const exId = select.value;
-    if (!exId) return;
-
     const container = select.closest("tr.formset-row") || select.closest(".formset-card");
     if (!container) return;
+
+    const infoBtn = container.querySelector(".js-ex-info");
+    if (infoBtn) infoBtn.disabled = !select.value;
+
+    const exId = select.value;
+    if (!exId) return;
 
     const planned = container.querySelector('input[name$="-planned_reps"]');
     if (!planned) return;
 
-    // не перетираем ручной ввод
     if (planned.value) return;
 
     try {
@@ -439,6 +519,71 @@
 
   window.addEventListener("resize", () => {
     initClampBlocks();
+  });
+
+  // ---------------- exercise description modal ----------------
+  const infoModalEl = document.getElementById("exerciseInfoModal");
+  const infoTitleEl = document.getElementById("exerciseInfoTitle");
+  const infoBodyEl = document.getElementById("exerciseInfoBody");
+  const infoModal = infoModalEl ? new bootstrap.Modal(infoModalEl) : null;
+
+  async function openExerciseInfo(params) {
+    const exId = params.exId;
+    const exName = params.exName;
+
+    if (!infoModal || !infoTitleEl || !infoBodyEl) return;
+
+    infoTitleEl.textContent = exName || "Упражнение";
+
+    if (!exId) {
+      infoBodyEl.textContent = "Сначала выберите упражнение.";
+      infoModal.show();
+      return;
+    }
+
+    infoBodyEl.textContent = "Загрузка…";
+    infoModal.show();
+
+    try {
+      const resp = await fetch(`/hattorihanzo/exercises/${exId}/description/`, {
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      });
+      if (!resp.ok) throw new Error("bad_response");
+      const data = await resp.json();
+
+      const text = (data.description || "").trim();
+      infoBodyEl.textContent = text ? text : "Описание не задано.";
+    } catch (e) {
+      infoBodyEl.textContent = "Не удалось загрузить описание.";
+    }
+  }
+
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".js-ex-info");
+    if (!btn) return;
+
+    e.preventDefault();
+
+    // 1) История (кнопка имеет data-exercise-id)
+    const dataId = btn.getAttribute("data-exercise-id");
+    if (dataId) {
+      openExerciseInfo({
+        exId: dataId,
+        exName: btn.getAttribute("data-exercise-name") || "Упражнение",
+      });
+      return;
+    }
+
+    // 2) Форма (кнопка стоит рядом с select)
+    const container = btn.closest("tr.formset-row") || btn.closest(".formset-card");
+    const select = container ? container.querySelector(".js-exercise-select") : null;
+
+    const exId = select ? select.value : "";
+    const exName = select
+      ? (select.options[select.selectedIndex] ? select.options[select.selectedIndex].text : "Упражнение")
+      : "Упражнение";
+
+    openExerciseInfo({ exId: exId, exName: exName });
   });
 })();
 </script>

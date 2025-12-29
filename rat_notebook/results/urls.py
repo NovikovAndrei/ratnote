@@ -5,7 +5,7 @@ from .views import (
     login_view, custom_logout,
     hattorihanzo, hattorihanzo_session_edit, hattorihanzo_session_delete,
     hattorihanzo_exercise_delete, hattorihanzo_exercises_reorder,
-    exercise_list, exercise_create, exercise_default_reps, dashboard
+    exercise_list, exercise_create, exercise_default_reps, dashboard, exercise_description
 )
 
 urlpatterns = [
@@ -43,4 +43,5 @@ urlpatterns = [
     path("exercises/", exercise_list, name="exercise_list"),
     path("exercises/add/", exercise_create, name="exercise_create"),
     path("hattorihanzo/exercises/<int:pk>/default-reps/", exercise_default_reps, name="exercise_default_reps"),
+    path("hattorihanzo/exercises/<int:pk>/description/", exercise_description, name="exercise_description"),
 ]

@@ -380,3 +380,8 @@ def dashboard(request):
         return redirect("event_list")
 
     return render(request, "dashboard.html")
+
+
+def exercise_description(request, pk: int):
+    ex = get_object_or_404(Exercise, pk=pk)
+    return JsonResponse({"description": ex.description or ""})
