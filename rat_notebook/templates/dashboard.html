@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container mt-4">
 
-  <h2 class="mb-4 text-center">Панель администратора</h2>
+  <h2 class="mb-4 text-center">Меню</h2>
 
   <div class="row g-4">
 
@@ -13,7 +13,7 @@
         <div class="card-body d-flex flex-column">
           <h5 class="card-title">🏆 Соревнования</h5>
           <p class="card-text text-muted">
-            Управление ивентами, результатами и спортсменами
+            Ивенты, результаты и спортсмены
           </p>
           <a href="{% url 'event_list' %}" class="btn btn-primary mt-auto">
             Перейти
@@ -22,15 +22,15 @@
       </div>
     </div>
 
-    <!-- ДНЕВНИК ЩЕНКА -->
+    <!-- ЩЕНКИ -->
     <div class="col-md-4">
       <div class="card h-100">
         <div class="card-body d-flex flex-column">
-          <h5 class="card-title">🐕 Дневник щенка</h5>
+          <h5 class="card-title">🐶 Щенки</h5>
           <p class="card-text text-muted">
-            Тренировки, упражнения и заметки
+            Профили щенков и дневники тренировок
           </p>
-          <a href="{% url 'hattorihanzo' %}" class="btn btn-primary mt-auto">
+          <a href="{% url 'puppy_list' %}" class="btn btn-primary mt-auto">
             Перейти
           </a>
         </div>

@@ -463,7 +463,7 @@ def hattorihanzo_exercises_reorder(request, pk: int):
     return JsonResponse({"ok": True})
 
 
-@staff_member_required
+@login_required
 def exercise_list(request):
     exercises = Exercise.objects.all()
     return render(request, "results/exercises_list.html", {
@@ -499,16 +499,6 @@ from django.shortcuts import redirect, render
 
 @login_required
 def dashboard(request):
-    """
-    Стартовая страница после логина.
-    Админ видит выбор разделов.
-    Обычный пользователь — старое поведение.
-    """
-    user = request.user
-
-    if not user.is_staff:
-        return redirect("event_list")
-
     return render(request, "dashboard.html")
 
 

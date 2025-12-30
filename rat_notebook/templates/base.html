@@ -21,11 +21,9 @@
 
     {% if user.is_authenticated %}
       <div class="text-center">
-        {% if user.is_staff %}
-          <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary logout-btn">
-            Панель администратора
-          </a>
-        {% endif %}
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary logout-btn">
+          Меню
+        </a>
 
         <a href="{% url 'logout' %}" class="btn btn-outline-danger logout-btn">
           Выход
