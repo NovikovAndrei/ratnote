@@ -250,9 +250,9 @@ def hattorihanzo(request):
     )
 
 
-@staff_member_required
+@login_required
 def puppy_list(request):
-    puppies = Puppy.objects.all()
+    puppies = Puppy.objects.all().order_by("pet_name", "id")
     return render(request, "results/puppy_list.html", {"puppies": puppies})
 
 

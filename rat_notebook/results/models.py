@@ -144,7 +144,16 @@ class Puppy(models.Model):
     @property
     def age_display(self) -> str:
         y, m, d = self.age_parts()
-        return f"{y} г {m} мес {d} д"
+
+        parts = []
+        if y > 0:
+            parts.append(f"{y} г")
+        if m > 0:
+            parts.append(f"{m} мес")
+        if d > 0 or not parts:
+            parts.append(f"{d} д")
+
+        return " ".join(parts)
 
 
 class PuppyTrainingSession(models.Model):
