@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Щенки</h2>
+    <a class="btn btn-primary" href="{% url 'puppy_create' %}">+ Добавить щенка</a>
+  </div>
+
+  {% if puppies %}
+    <div class="row g-3">
+      {% for p in puppies %}
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="card p-3 h-100">
+            <div class="fw-semibold fs-5">{{ p.pet_name }}</div>
+            {% if p.registered_name %}
+              <div class="text-muted small">{{ p.registered_name }}</div>
+            {% endif %}
+
+            <div class="mt-2 small">
+              <div>Пол: <span class="text-muted">{{ p.get_sex_display }}</span></div>
+              <div>Дата рождения: <span class="text-muted">{{ p.birth_date|date:"d.m.Y" }}</span></div>
+              <div>Возраст: <span class="text-muted">{{ p.age_display }}</span></div>
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
+              <a class="btn btn-outline-secondary" href="{% url 'puppy_edit' p.id %}">Профиль</a>
+              <a class="btn btn-outline-primary" href="{% url 'puppy_diary' p.id %}">Дневник</a>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-muted">Пока нет ни одного щенка.</div>
+  {% endif %}
+
+</div>
+{% endblock %}

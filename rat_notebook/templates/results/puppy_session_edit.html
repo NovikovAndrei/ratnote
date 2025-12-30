@@ -3,8 +3,10 @@
 <div class="container mt-4">
 
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="mb-0">Редактировать тренировку</h2>
-    <a class="btn btn-outline-secondary" href="/hattorihanzo?date={{ session.date|date:'Y-m-d' }}">Назад</a>
+    <h2 class="mb-0">Редактировать тренировку — {{ puppy.pet_name }}</h2>
+
+    <a class="btn btn-outline-secondary"
+       href="{% url 'puppy_diary' puppy.id %}?date={{ session.date|date:'Y-m-d' }}">Назад</a>
   </div>
 
   <div class="card p-3">
@@ -169,7 +171,8 @@
 
       <div class="d-flex gap-2 mt-3">
         <button class="btn btn-primary" type="submit">Сохранить</button>
-        <a class="btn btn-outline-danger" href="{% url 'hattorihanzo_session_delete' session.id %}">Удалить тренировку</a>
+        <a class="btn btn-outline-danger"
+           href="{% url 'puppy_session_delete' puppy.id session.id %}">Удалить тренировку</a>
       </div>
 
       {# templates for new rows (table + card), use __prefix__ #}

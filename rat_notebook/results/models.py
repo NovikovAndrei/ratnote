@@ -1,3 +1,6 @@
+from datetime import date
+import calendar
+
 from django.db import models
 from .scoring import GROWTH_GROUPS, calculate_champion_points
 
@@ -88,8 +91,72 @@ class DisciplineResult(models.Model):
         return f"{self.athlete.name}: {self.discipline.verbose} — {self.points} очков"
 
 
+class Puppy(models.Model):
+    SEX_CHOICES = [
+        ("M", "Кобель"),
+        ("F", "Сука"),
+    ]
+
+    pet_name = models.CharField("Домашняя кличка", max_length=120)
+    registered_name = models.CharField("Кличка по документам", max_length=200, blank=True)
+    sex = models.CharField("Пол", max_length=1, choices=SEX_CHOICES)
+    birth_date = models.DateField("Дата рождения")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Щенок"
+        verbose_name_plural = "Щенки"
+        ordering = ["pet_name", "id"]
+
+    def __str__(self):
+        return self.pet_name
+
+    def age_parts(self, on_date: date | None = None):
+        """
+        Возраст: (years, months, days) на текущую дату.
+        Без внешних зависимостей (dateutil).
+        """
+        on_date = on_date or date.today()
+        if self.birth_date > on_date:
+            return (0, 0, 0)
+
+        y = on_date.year - self.birth_date.year
+        m = on_date.month - self.birth_date.month
+        d = on_date.day - self.birth_date.day
+
+        if d < 0:
+            # берём дни предыдущего месяца
+            prev_month = on_date.month - 1 or 12
+            prev_year = on_date.year if on_date.month != 1 else on_date.year - 1
+            d += calendar.monthrange(prev_year, prev_month)[1]
+            m -= 1
+
+        if m < 0:
+            m += 12
+            y -= 1
+
+        if y < 0:
+            y, m, d = 0, 0, 0
+
+        return (y, m, d)
+
+    @property
+    def age_display(self) -> str:
+        y, m, d = self.age_parts()
+        return f"{y} г {m} мес {d} д"
+
+
 class PuppyTrainingSession(models.Model):
-    date = models.DateField("Дата",db_index=True)
+    puppy = models.ForeignKey(
+        Puppy,
+        on_delete=models.CASCADE,
+        related_name="sessions",
+        verbose_name="Щенок",
+        db_index=True,
+    )
+
+    date = models.DateField("Дата", db_index=True)
     start_time = models.TimeField("Время начала")
     end_time = models.TimeField("Время конца")
     notes = models.TextField("Заметка к тренировке", blank=True)
@@ -100,7 +167,7 @@ class PuppyTrainingSession(models.Model):
         ordering = ["-date", "-start_time", "-id"]
 
     def __str__(self):
-        return f"{self.date} {self.start_time}-{self.end_time}"
+        return f"{self.puppy.pet_name}: {self.date} {self.start_time}-{self.end_time}"
 
 
 class Exercise(models.Model):

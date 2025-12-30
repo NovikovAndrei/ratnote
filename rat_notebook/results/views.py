@@ -4,14 +4,14 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.http import require_POST, require_GET
-from django.http import HttpResponseForbidden, JsonResponse
+from django.http import HttpResponseForbidden, JsonResponse, HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.db import transaction
 from django.utils.dateparse import parse_date
-from .models import Event, DisciplineResult, PuppyTrainingSession, PuppyTrainingExercise, Exercise
+from .models import Event, DisciplineResult, PuppyTrainingSession, PuppyTrainingExercise, Exercise, Puppy
 from .forms import AthleteForm, DisciplineResultForm, EventForm, LoginForm, PuppyTrainingSessionForm, \
-    PuppyTrainingExerciseCreateFormSet, PuppyTrainingExerciseEditFormSet, ExerciseForm
+    PuppyTrainingExerciseCreateFormSet, PuppyTrainingExerciseEditFormSet, ExerciseForm, PuppyForm
 from .scoring import assign_growth_scores, compute_final_places
 
 
@@ -248,6 +248,128 @@ def hattorihanzo(request):
             "formset": formset,
         },
     )
+
+
+@staff_member_required
+def puppy_list(request):
+    puppies = Puppy.objects.all()
+    return render(request, "results/puppy_list.html", {"puppies": puppies})
+
+
+@staff_member_required
+def puppy_create(request):
+    if request.method == "POST":
+        form = PuppyForm(request.POST)
+        if form.is_valid():
+            p = form.save()
+            return redirect("puppy_diary", puppy_id=p.id)
+    else:
+        form = PuppyForm()
+    return render(request, "results/puppy_form.html", {"form": form, "title": "Добавить щенка"})
+
+
+@staff_member_required
+def puppy_edit(request, puppy_id: int):
+    puppy = get_object_or_404(Puppy, pk=puppy_id)
+
+    if request.method == "POST":
+        form = PuppyForm(request.POST, instance=puppy)
+        if form.is_valid():
+            form.save()
+            return redirect("puppy_list")
+    else:
+        form = PuppyForm(instance=puppy)
+
+    return render(request, "results/puppy_form.html", {"form": form, "title": "Редактировать щенка"})
+
+
+@staff_member_required
+def puppy_diary(request, puppy_id: int):
+    puppy = get_object_or_404(Puppy, pk=puppy_id)
+    selected_date = parse_date(request.GET.get("date") or "") or dt_date.today()
+
+    if request.method == "POST":
+        session_form = PuppyTrainingSessionForm(request.POST)
+        if session_form.is_valid():
+            session = session_form.save(commit=False)
+            session.puppy = puppy
+            session.save()
+
+            formset = PuppyTrainingExerciseCreateFormSet(request.POST, instance=session)
+            if formset.is_valid():
+                formset.save()
+                return redirect(f"{request.path}?date={session.date.isoformat()}")
+            session.delete()
+        else:
+            formset = PuppyTrainingExerciseCreateFormSet(request.POST)
+    else:
+        session_form = PuppyTrainingSessionForm(initial={"date": selected_date})
+        formset = PuppyTrainingExerciseCreateFormSet()
+
+    sessions = (
+        PuppyTrainingSession.objects
+        .filter(puppy=puppy, date=selected_date)
+        .prefetch_related("exercises__exercise")
+        .order_by("start_time", "id")
+    )
+
+    return render(request, "results/puppy_diary.html", {
+        "puppy": puppy,
+        "selected_date": selected_date,
+        "session_form": session_form,
+        "formset": formset,
+        "sessions": sessions,
+    })
+
+
+@staff_member_required
+def puppy_session_edit(request, puppy_id: int, pk: int):
+    puppy = get_object_or_404(Puppy, pk=puppy_id)
+    session = get_object_or_404(PuppyTrainingSession, pk=pk, puppy=puppy)
+
+    if request.method == "POST":
+        session_form = PuppyTrainingSessionForm(request.POST, instance=session)
+        formset = PuppyTrainingExerciseEditFormSet(request.POST, instance=session)
+
+        if session_form.is_valid() and formset.is_valid():
+            session_form.save()
+            formset.save()
+            return redirect(f"{reverse('puppy_diary', args=[puppy.id])}?date={session.date.isoformat()}")
+    else:
+        session_form = PuppyTrainingSessionForm(instance=session)
+        formset = PuppyTrainingExerciseEditFormSet(instance=session)
+
+    return render(request, "results/puppy_session_edit.html", {
+        "puppy": puppy,
+        "session": session,
+        "session_form": session_form,
+        "formset": formset,
+    })
+
+
+@staff_member_required
+def puppy_session_delete(request, puppy_id: int, pk: int):
+    puppy = get_object_or_404(Puppy, pk=puppy_id)
+    session = get_object_or_404(PuppyTrainingSession, pk=pk, puppy=puppy)
+
+    if request.method == "POST":
+        selected_date = session.date
+        session.delete()
+        return redirect(f"{reverse('puppy_diary', args=[puppy.id])}?date={selected_date.isoformat()}")
+
+    return render(request, "results/puppy_session_confirm_delete.html", {
+        "puppy": puppy,
+        "session": session,
+    })
+
+
+@staff_member_required
+def hattorihanzo_redirect(request):
+    # совместимость со старой ссылкой
+    puppy = Puppy.objects.order_by("id").first()
+    if not puppy:
+        return redirect("puppy_create")
+    return redirect(f"{reverse('puppy_diary', args=[puppy.id])}?{request.META.get('QUERY_STRING','')}")
 
 
 @staff_member_required

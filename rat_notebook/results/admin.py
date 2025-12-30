@@ -2,7 +2,7 @@
 
 from django.contrib import admin
 from .models import Event, DisciplineType, Athlete, DisciplineResult, PuppyTrainingSession, PuppyTrainingExercise, \
-    Exercise
+    Exercise, Puppy
 
 
 @admin.register(Event)
@@ -48,3 +48,10 @@ class PuppyTrainingSessionAdmin(admin.ModelAdmin):
 class ExerciseAdmin(admin.ModelAdmin):
     list_display = ("name", "default_reps", "created_at")
     search_fields = ("name",)
+
+
+@admin.register(Puppy)
+class PuppyAdmin(admin.ModelAdmin):
+    list_display = ("pet_name", "registered_name", "sex", "birth_date")
+    search_fields = ("pet_name", "registered_name")
+    list_filter = ("sex",)

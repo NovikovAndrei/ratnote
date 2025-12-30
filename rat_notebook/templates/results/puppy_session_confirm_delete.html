@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Удалить тренировку — {{ puppy.pet_name }}?</h2>
+  <p>
+    Вы действительно хотите удалить тренировку
+    <strong>{{ session.date|date:"d.m.Y" }}</strong>
+    <strong>{{ session.start_time|time:"H:i" }}–{{ session.end_time|time:"H:i" }}</strong>?
+  </p>
+  <p class="text-muted">Удалятся и все упражнения внутри.</p>
+
+  <form method="post" class="d-flex gap-2">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Удалить</button>
+    <a class="btn btn-secondary"
+       href="{% url 'puppy_diary' puppy.id %}?date={{ session.date|date:'Y-m-d' }}">
+      Отмена
+    </a>
+  </form>
+</div>
+{% endblock %}

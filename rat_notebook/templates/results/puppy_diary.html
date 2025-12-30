@@ -2,13 +2,19 @@
 {% block content %}
 <div class="container mt-4">
 
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="mb-0">Редактировать тренировку</h2>
-    <a class="btn btn-outline-secondary" href="/hattorihanzo?date={{ session.date|date:'Y-m-d' }}">Назад</a>
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h2 class="mb-0">Дневник щенка — {{ puppy.pet_name }}</h2>
+
+    <form method="get" class="d-flex gap-2">
+      <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control">
+      <button class="btn btn-outline-secondary" type="submit">Показать</button>
+    </form>
   </div>
 
-  <div class="card p-3">
-    <form method="post" id="session-edit-form">
+  <div class="card p-3 mb-4">
+    <h5 class="mb-3">Добавить тренировку</h5>
+
+    <form method="post" id="session-create-form">
       {% csrf_token %}
 
       <div class="row g-3 mb-3">
@@ -23,43 +29,31 @@
       {% endif %}
 
       <div class="d-flex align-items-center justify-content-between mt-3">
-        <div>
-          <h6 class="mb-0">Упражнения</h6>
-        </div>
-        <div class="d-flex gap-2">
-          <button type="button" class="btn btn-sm btn-outline-primary" id="add-row-btn">+ Добавить ещё строку</button>
-          <span id="reorder-status" class="small text-muted align-self-center"></span>
-        </div>
+        <h6 class="mb-0">Упражнения</h6>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="add-row-btn">+ Добавить упражнение</button>
       </div>
 
       {{ formset.management_form }}
 
       {# ===================== DESKTOP TABLE ===================== #}
       <div class="table-responsive mt-2 d-none d-md-block">
-        <table class="table table-sm table-striped align-middle">
+        <table class="table table-sm table-striped align-middle" id="exercises-table">
           <thead>
             <tr>
-              <th style="width:48px;"></th>
               <th style="min-width:200px;">Упражнение</th>
               <th style="width:110px;">План</th>
               <th style="width:110px;">Факт</th>
               <th style="min-width:220px;">Плюсы</th>
               <th style="min-width:220px;">Минусы</th>
-              <th style="width:120px;">Действие</th>
+              <th style="width:120px;">Удалить</th>
             </tr>
           </thead>
 
           <tbody id="formset-body-table">
             {% for f in formset %}
-              <tr class="formset-row"
-                  {% if f.instance.pk %}data-ex-id="{{ f.instance.pk }}"{% endif %}
-                  draggable="true">
-                <td class="text-center" style="cursor:grab; user-select:none;">≡</td>
-
+              <tr class="formset-row">
                 <td>
                   {{ f.id }}
-                  <span style="display:none;">{{ f.DELETE }}</span>
-
                   <div class="d-flex align-items-center gap-2">
                     {{ f.exercise }}
                     <button type="button"
@@ -69,30 +63,18 @@
                   </div>
                   {% for err in f.exercise.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </td>
-
                 <td>
                   {{ f.planned_reps }}
                   {% for err in f.planned_reps.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </td>
-
                 <td>
                   {{ f.actual_reps }}
                   {% for err in f.actual_reps.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </td>
-
                 <td>{{ f.pros }}</td>
                 <td>{{ f.cons }}</td>
-
                 <td class="text-center">
-                  {% if f.instance.pk %}
-                    <button type="button"
-                            class="btn btn-sm btn-outline-danger js-delete-saved"
-                            data-delete-url="{% url 'hattorihanzo_exercise_delete' f.instance.pk %}">
-                      Удалить
-                    </button>
-                  {% else %}
-                    <button type="button" class="btn btn-sm btn-outline-danger js-remove-new">Удалить</button>
-                  {% endif %}
+                  <button type="button" class="btn btn-sm btn-outline-danger js-remove-row">Удалить</button>
                 </td>
               </tr>
             {% endfor %}
@@ -103,30 +85,14 @@
       {# ===================== MOBILE CARDS ===================== #}
       <div class="mt-2 d-block d-md-none" id="formset-cards">
         {% for f in formset %}
-          <div class="card p-3 mb-2 formset-card"
-               {% if f.instance.pk %}data-ex-id="{{ f.instance.pk }}"{% endif %}
-               draggable="true">
+          <div class="card p-3 mb-2 formset-card">
             <div class="d-flex justify-content-between align-items-start mb-2">
-              <div class="d-flex align-items-center gap-2">
-                <div style="cursor:grab; user-select:none;">≡</div>
-                <div class="fw-semibold">Упражнение</div>
-              </div>
-
-              {% if f.instance.pk %}
-                <button type="button"
-                        class="btn btn-sm btn-outline-danger js-delete-saved"
-                        data-delete-url="{% url 'hattorihanzo_exercise_delete' f.instance.pk %}">
-                  Удалить
-                </button>
-              {% else %}
-                <button type="button" class="btn btn-sm btn-outline-danger js-remove-new">Удалить</button>
-              {% endif %}
+              <div class="fw-semibold">Упражнение</div>
+              <button type="button" class="btn btn-sm btn-outline-danger js-remove-row">Удалить</button>
             </div>
 
             <div class="mb-2">
               {{ f.id }}
-              <span style="display:none;">{{ f.DELETE }}</span>
-
               <div class="d-flex align-items-center gap-2">
                 {{ f.exercise }}
                 <button type="button"
@@ -167,19 +133,13 @@
         <div class="text-danger mb-2">{{ formset.non_form_errors }}</div>
       {% endif %}
 
-      <div class="d-flex gap-2 mt-3">
-        <button class="btn btn-primary" type="submit">Сохранить</button>
-        <a class="btn btn-outline-danger" href="{% url 'hattorihanzo_session_delete' session.id %}">Удалить тренировку</a>
-      </div>
+      <button class="btn btn-primary" type="submit">Сохранить тренировку</button>
 
-      {# templates for new rows (table + card), use __prefix__ #}
+      {# ======== templates for new rows (table + card), both use __prefix__ ======== #}
       <template id="row-template-table">
-        <tr class="formset-row" draggable="true">
-          <td class="text-center" style="cursor:grab; user-select:none;">≡</td>
+        <tr class="formset-row">
           <td>
             {{ formset.empty_form.id }}
-            <span style="display:none;">{{ formset.empty_form.DELETE }}</span>
-
             <div class="d-flex align-items-center gap-2">
               {{ formset.empty_form.exercise }}
               <button type="button"
@@ -193,25 +153,20 @@
           <td>{{ formset.empty_form.pros }}</td>
           <td>{{ formset.empty_form.cons }}</td>
           <td class="text-center">
-            <button type="button" class="btn btn-sm btn-outline-danger js-remove-new">Удалить</button>
+            <button type="button" class="btn btn-sm btn-outline-danger js-remove-row">Удалить</button>
           </td>
         </tr>
       </template>
 
       <template id="row-template-card">
-        <div class="card p-3 mb-2 formset-card" draggable="true">
+        <div class="card p-3 mb-2 formset-card">
           <div class="d-flex justify-content-between align-items-start mb-2">
-            <div class="d-flex align-items-center gap-2">
-              <div style="cursor:grab; user-select:none;">≡</div>
-              <div class="fw-semibold">Упражнение</div>
-            </div>
-            <button type="button" class="btn btn-sm btn-outline-danger js-remove-new">Удалить</button>
+            <div class="fw-semibold">Упражнение</div>
+            <button type="button" class="btn btn-sm btn-outline-danger js-remove-row">Удалить</button>
           </div>
 
           <div class="mb-2">
             {{ formset.empty_form.id }}
-            <span style="display:none;">{{ formset.empty_form.DELETE }}</span>
-
             <div class="d-flex align-items-center gap-2">
               {{ formset.empty_form.exercise }}
               <button type="button"
@@ -247,10 +202,116 @@
     </form>
   </div>
 
-</div>
+  <h5 class="mb-2">Тренировки за {{ selected_date|date:"d.m.Y" }}</h5>
 
+  {% for s in sessions %}
+    <div class="card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="fw-semibold">
+            {{ s.start_time|time:"H:i" }} – {{ s.end_time|time:"H:i" }}
+          </div>
+          {% if s.notes %}
+            <div class="text-muted small" style="white-space:pre-wrap;">{{ s.notes }}</div>
+          {% endif %}
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'puppy_session_edit' puppy.id s.id %}">Редактировать</a>
+          <a class="btn btn-sm btn-outline-danger" href="{% url 'puppy_session_delete' puppy.id s.id %}">Удалить</a>
+        </div>
+      </div>
+
+      {# ======= DESKTOP VIEW: TABLE ======= #}
+      <div class="table-responsive mt-2 d-none d-md-block">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Упражнение</th>
+              <th>План</th>
+              <th>Факт</th>
+              <th>Плюсы</th>
+              <th>Минусы</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in s.exercises.all %}
+              <tr>
+                <td class="fw-semibold">
+                  <div class="d-flex align-items-center gap-2">
+                    <span>{{ e.exercise }}</span>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary js-ex-info"
+                            title="Описание"
+                            data-exercise-id="{{ e.exercise_id }}"
+                            data-exercise-name="{{ e.exercise }}"
+                            {% if not e.exercise_id %}disabled{% endif %}>ℹ️</button>
+                  </div>
+                </td>
+                <td>{{ e.planned_reps }}</td>
+                <td>{{ e.actual_reps }}</td>
+                <td style="white-space:pre-wrap;">{{ e.pros }}</td>
+                <td style="white-space:pre-wrap;">{{ e.cons }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="text-muted">Упражнений нет</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {# ======= MOBILE VIEW: CARDS with clamp + expand ======= #}
+      <div class="mt-2 d-block d-md-none">
+        {% for e in s.exercises.all %}
+          <div class="card p-3 mb-2">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="fw-semibold">{{ e.exercise }}</div>
+              <button type="button"
+                      class="btn btn-sm btn-outline-secondary js-ex-info"
+                      title="Описание"
+                      data-exercise-id="{{ e.exercise_id }}"
+                      data-exercise-name="{{ e.exercise }}"
+                      {% if not e.exercise_id %}disabled{% endif %}>ℹ️</button>
+            </div>
+
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <div class="small text-muted">План</div>
+                <div>{{ e.planned_reps }}</div>
+              </div>
+              <div class="col-6">
+                <div class="small text-muted">Факт</div>
+                <div>{{ e.actual_reps }}</div>
+              </div>
+            </div>
+
+            <div class="mb-2">
+              <div class="small text-muted mb-1">Плюсы</div>
+              <div class="hhz-clamp js-clamp" data-clamp-lines="3" style="white-space:pre-wrap;">{{ e.pros }}</div>
+              <button type="button" class="btn btn-link btn-sm p-0 js-toggle-clamp" style="display:none;">Показать полностью</button>
+            </div>
+
+            <div class="mb-0">
+              <div class="small text-muted mb-1">Минусы</div>
+              <div class="hhz-clamp js-clamp" data-clamp-lines="3" style="white-space:pre-wrap;">{{ e.cons }}</div>
+              <button type="button" class="btn btn-link btn-sm p-0 js-toggle-clamp" style="display:none;">Показать полностью</button>
+            </div>
+          </div>
+        {% empty %}
+          <div class="text-muted">Упражнений нет</div>
+        {% endfor %}
+      </div>
+
+    </div>
+  {% empty %}
+    <div class="text-muted">Нет тренировок за эту дату.</div>
+  {% endfor %}
+
+</div>
 {% endblock %}
+
 {% block page_html %}
+{# ===================== Exercise Info Modal (вынесена из container) ===================== #}
 <div class="modal fade" id="exerciseInfoModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
@@ -266,14 +327,11 @@
 </div>
 {% endblock %}
 
-
-{# ВАЖНО: этот блок должен быть после подключения bootstrap.bundle в base.html #}
 {% block page_js %}
 <script>
 (function () {
+  // ---------------- create form add/remove rows ----------------
   const addBtn = document.getElementById("add-row-btn");
-  const statusEl = document.getElementById("reorder-status");
-
   const totalForms = document.querySelector('[name$="-TOTAL_FORMS"]');
 
   const tableBody = document.getElementById("formset-body-table");
@@ -281,16 +339,6 @@
 
   const tplTable = document.getElementById("row-template-table");
   const tplCard = document.getElementById("row-template-card");
-
-  function getCsrf() {
-    const el = document.querySelector('input[name="csrfmiddlewaretoken"]');
-    return el ? el.value : "";
-  }
-
-  function setStatus(text) {
-    if (!statusEl) return;
-    statusEl.textContent = text || "";
-  }
 
   function isMobile() {
     return window.matchMedia("(max-width: 767.98px)").matches;
@@ -336,61 +384,36 @@
     totalForms.value = index + 1;
 
     syncLayoutInputs();
-    syncInfoButtons(); // ✅ для новых строк
+    syncInfoButtons(); // ✅ включить/выключить ℹ️ у новой строки
+  }
+
+  function removeRow(btn) {
+    if (isMobile()) {
+      const card = btn.closest(".formset-card");
+      if (!card) return;
+      card.remove();
+    } else {
+      const tr = btn.closest("tr.formset-row");
+      if (!tr) return;
+      tr.remove();
+    }
+
+    const currentTotal = parseInt(totalForms.value, 10);
+    if (currentTotal > 0) totalForms.value = currentTotal - 1;
+
+    syncLayoutInputs();
+    syncInfoButtons();
   }
 
   if (addBtn && totalForms && tplTable && tplCard && tableBody && cardsWrap) {
     addBtn.addEventListener("click", addRow);
   }
 
-  async function deleteSaved(el, url) {
-    const delInput = el.querySelector('input[type="checkbox"][name$="-DELETE"]');
-    if (delInput) delInput.checked = true;
-
-    el.style.display = "none";
-    syncLayoutInputs();
-
-    try {
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: { "X-CSRFToken": getCsrf() },
-      });
-      if (!resp.ok) throw new Error("bad_response");
-
-      await persistOrder();
-    } catch (e) {
-      if (delInput) delInput.checked = false;
-      el.style.display = "";
-      syncLayoutInputs();
-      window.location.reload();
-    }
-  }
-
-  function removeNew(el) {
-    el.remove();
-    const currentTotal = parseInt(totalForms.value, 10);
-    if (currentTotal > 0) totalForms.value = currentTotal - 1;
-    syncLayoutInputs();
-    syncInfoButtons();
-  }
-
   document.addEventListener("click", (e) => {
-    const btnSaved = e.target.closest(".js-delete-saved");
-    if (btnSaved) {
+    const btn = e.target.closest(".js-remove-row");
+    if (btn) {
       e.preventDefault();
-      const url = btnSaved.getAttribute("data-delete-url");
-      if (!url) return;
-
-      const row = btnSaved.closest("tr.formset-row") || btnSaved.closest(".formset-card");
-      if (row) deleteSaved(row, url);
-      return;
-    }
-
-    const btnNew = e.target.closest(".js-remove-new");
-    if (btnNew) {
-      e.preventDefault();
-      const row = btnNew.closest("tr.formset-row") || btnNew.closest(".formset-card");
-      if (row) removeNew(row);
+      removeRow(btn);
       return;
     }
   });
@@ -437,89 +460,66 @@
     }
   });
 
-  // ----- reorder -----
-  let dragged = null;
-
-  function currentSavedIds() {
-    const container = isMobile() ? cardsWrap : tableBody;
-    return Array.from(container.querySelectorAll("[data-ex-id]"))
-      .filter(el => el.style.display !== "none")
-      .map(el => el.getAttribute("data-ex-id"))
-      .filter(Boolean)
-      .map(x => parseInt(x, 10));
+  // ---------------- mobile clamp expand/collapse (pros/cons) ----------------
+  function applyClamp(el, lines) {
+    el.style.setProperty("--hhz-lines", String(lines));
+    el.classList.add("hhz-clamp");
   }
 
-  async function persistOrder() {
-    const ids = currentSavedIds();
-    if (ids.length < 2) return;
+  function isOverflowing(el) {
+    const was = el.classList.contains("hhz-expanded");
 
-    setStatus("Сохраняю порядок…");
+    el.classList.remove("hhz-expanded");
+    const clampedH = el.getBoundingClientRect().height;
 
-    try {
-      const resp = await fetch("{% url 'hattorihanzo_exercises_reorder' session.id %}", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": getCsrf(),
-        },
-        body: JSON.stringify({ ordered_ids: ids }),
-      });
-      if (!resp.ok) throw new Error("bad_response");
-      setStatus("Порядок сохранён");
-      setTimeout(() => setStatus(""), 1200);
-    } catch (e) {
-      setStatus("Ошибка сохранения порядка");
-      setTimeout(() => setStatus(""), 2000);
-    }
+    el.classList.add("hhz-expanded");
+    const fullH = el.getBoundingClientRect().height;
+
+    if (!was) el.classList.remove("hhz-expanded"); else el.classList.add("hhz-expanded");
+
+    return fullH > clampedH + 1;
   }
 
-  function onDragStart(e) {
-    const row = e.target.closest("tr.formset-row") || e.target.closest(".formset-card");
-    if (!row || row.style.display === "none") return;
-    dragged = row;
-    row.classList.add("opacity-50");
-    e.dataTransfer.effectAllowed = "move";
+  function initClampBlocks() {
+    const blocks = document.querySelectorAll(".js-clamp");
+    blocks.forEach((block) => {
+      const lines = parseInt(block.getAttribute("data-clamp-lines") || "3", 10);
+      applyClamp(block, lines);
+
+      const btn = block.parentElement.querySelector(".js-toggle-clamp");
+      if (!btn) return;
+
+      if (!block.textContent || block.textContent.trim().length === 0) {
+        btn.style.display = "none";
+        return;
+      }
+
+      if (isOverflowing(block)) {
+        btn.style.display = "inline-block";
+        btn.textContent = "Показать полностью";
+      } else {
+        btn.style.display = "none";
+      }
+    });
   }
 
-  function onDragEnd(e) {
-    const row = e.target.closest("tr.formset-row") || e.target.closest(".formset-card");
-    if (row) row.classList.remove("opacity-50");
-    dragged = null;
-  }
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".js-toggle-clamp");
+    if (!btn) return;
 
-  function onDragOver(e) {
     e.preventDefault();
-    const container = isMobile() ? cardsWrap : tableBody;
-    const target = e.target.closest("tr.formset-row") || e.target.closest(".formset-card");
-    if (!container || !container.contains(target)) return;
-    if (!target || !dragged || target === dragged) return;
-    if (target.style.display === "none" || dragged.style.display === "none") return;
+    const block = btn.parentElement.querySelector(".js-clamp");
+    if (!block) return;
 
-    const rect = target.getBoundingClientRect();
-    const isAfter = (e.clientY - rect.top) > rect.height / 2;
+    const expanded = block.classList.toggle("hhz-expanded");
+    btn.textContent = expanded ? "Свернуть" : "Показать полностью";
+  });
 
-    if (isAfter) target.after(dragged);
-    else target.before(dragged);
-  }
+  initClampBlocks();
 
-  function onDrop(e) {
-    e.preventDefault();
-    persistOrder();
-  }
-
-  if (tableBody) {
-    tableBody.addEventListener("dragstart", onDragStart);
-    tableBody.addEventListener("dragend", onDragEnd);
-    tableBody.addEventListener("dragover", onDragOver);
-    tableBody.addEventListener("drop", onDrop);
-  }
-
-  if (cardsWrap) {
-    cardsWrap.addEventListener("dragstart", onDragStart);
-    cardsWrap.addEventListener("dragend", onDragEnd);
-    cardsWrap.addEventListener("dragover", onDragOver);
-    cardsWrap.addEventListener("drop", onDrop);
-  }
+  window.addEventListener("resize", () => {
+    initClampBlocks();
+  });
 
   // ---------------- exercise description modal ----------------
   const infoModalEl = document.getElementById("exerciseInfoModal");
@@ -564,6 +564,17 @@
 
     e.preventDefault();
 
+    // 1) История (кнопка имеет data-exercise-id)
+    const dataId = btn.getAttribute("data-exercise-id");
+    if (dataId) {
+      openExerciseInfo({
+        exId: dataId,
+        exName: btn.getAttribute("data-exercise-name") || "Упражнение",
+      });
+      return;
+    }
+
+    // 2) Форма (кнопка стоит рядом с select)
     const container = btn.closest("tr.formset-row") || btn.closest(".formset-card");
     const select = container ? container.querySelector(".js-exercise-select") : null;
 

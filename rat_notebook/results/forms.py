@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from .models import Athlete, DisciplineResult, Event
 from django.forms import inlineformset_factory
 from django.forms.widgets import Select
-from .models import PuppyTrainingSession, PuppyTrainingExercise, Exercise
+from .models import PuppyTrainingSession, PuppyTrainingExercise, Exercise, Puppy
 
 
 class LoginForm(forms.Form):
@@ -247,4 +247,16 @@ class ExerciseForm(forms.ModelForm):
             "name": forms.TextInput(attrs={"class": "form-control"}),
             "description": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
             "default_reps": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+        }
+
+
+class PuppyForm(forms.ModelForm):
+    class Meta:
+        model = Puppy
+        fields = ["pet_name", "registered_name", "sex", "birth_date"]
+        widgets = {
+            "pet_name": forms.TextInput(attrs={"class": "form-control"}),
+            "registered_name": forms.TextInput(attrs={"class": "form-control"}),
+            "sex": forms.Select(attrs={"class": "form-select"}),
+            "birth_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
         }
