@@ -2,6 +2,7 @@ from datetime import date
 import calendar
 
 from django.db import models
+from django.conf import settings
 from .scoring import GROWTH_GROUPS, calculate_champion_points
 
 # ростовые категории
@@ -97,6 +98,14 @@ class Puppy(models.Model):
         ("F", "Сука"),
     ]
 
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="puppies",
+        verbose_name="Владелец (пользователь)",
+    )
     pet_name = models.CharField("Домашняя кличка", max_length=120)
     registered_name = models.CharField("Кличка по документам", max_length=200, blank=True)
     sex = models.CharField("Пол", max_length=1, choices=SEX_CHOICES)

@@ -5,9 +5,11 @@
   <div class="d-flex align-items-center justify-content-between mb-3">
     <h2 class="mb-0">Щенки</h2>
 
-    <a class="btn btn-primary" href="{% url 'puppy_create' %}">
-      + Создать щенка
-    </a>
+    {% if user.is_staff %}
+      <a class="btn btn-primary" href="{% url 'puppy_create' %}">
+        + Создать щенка
+      </a>
+    {% endif %}
   </div>
 
   {% if puppies %}

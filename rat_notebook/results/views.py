@@ -252,8 +252,17 @@ def hattorihanzo(request):
 
 @login_required
 def puppy_list(request):
-    puppies = Puppy.objects.all().order_by("pet_name", "id")
-    return render(request, "results/puppy_list.html", {"puppies": puppies})
+    qs = Puppy.objects.all()
+    if not request.user.is_staff:
+        qs = qs.filter(owner=request.user)
+    return render(request, "results/puppy_list.html", {"puppies": qs})
+
+
+def get_puppy_for_user_or_404(request, puppy_id: int):
+    qs = Puppy.objects.all()
+    if not request.user.is_staff:
+        qs = qs.filter(owner=request.user)
+    return get_object_or_404(qs, pk=puppy_id)
 
 
 @staff_member_required
@@ -261,7 +270,9 @@ def puppy_create(request):
     if request.method == "POST":
         form = PuppyForm(request.POST)
         if form.is_valid():
-            p = form.save()
+            p = form.save(commit=False)
+            p.owner = request.user  # ✅ важно
+            p.save()
             return redirect("puppy_diary", puppy_id=p.id)
     else:
         form = PuppyForm()
@@ -283,9 +294,8 @@ def puppy_edit(request, puppy_id: int):
     return render(request, "results/puppy_form.html", {"form": form, "title": "Редактировать щенка"})
 
 
-@staff_member_required
 def puppy_diary(request, puppy_id: int):
-    puppy = get_object_or_404(Puppy, pk=puppy_id)
+    puppy = get_puppy_for_user_or_404(request, puppy_id)  # ✅ было get_object_or_404
     selected_date = parse_date(request.GET.get("date") or "") or dt_date.today()
 
     if request.method == "POST":
@@ -322,9 +332,8 @@ def puppy_diary(request, puppy_id: int):
     })
 
 
-@staff_member_required
 def puppy_session_edit(request, puppy_id: int, pk: int):
-    puppy = get_object_or_404(Puppy, pk=puppy_id)
+    puppy = get_puppy_for_user_or_404(request, puppy_id)  # ✅ было get_object_or_404
     session = get_object_or_404(PuppyTrainingSession, pk=pk, puppy=puppy)
 
     if request.method == "POST":
@@ -347,9 +356,8 @@ def puppy_session_edit(request, puppy_id: int, pk: int):
     })
 
 
-@staff_member_required
 def puppy_session_delete(request, puppy_id: int, pk: int):
-    puppy = get_object_or_404(Puppy, pk=puppy_id)
+    puppy = get_puppy_for_user_or_404(request, puppy_id)  # ✅ было get_object_or_404
     session = get_object_or_404(PuppyTrainingSession, pk=pk, puppy=puppy)
 
     if request.method == "POST":
