@@ -15,7 +15,7 @@ from .views import (
     hattorihanzo_exercise_delete, hattorihanzo_exercises_reorder,
 
     # exercises base
-    exercise_list, exercise_create, exercise_default_reps,
+    exercise_list, exercise_create, exercise_default_reps, exercise_description
 )
 
 urlpatterns = [
@@ -46,6 +46,8 @@ urlpatterns = [
     path("hattorihanzo/exercises/<int:pk>/delete/", hattorihanzo_exercise_delete, name="hattorihanzo_exercise_delete"),
     path("hattorihanzo/session/<int:pk>/reorder/", hattorihanzo_exercises_reorder, name="hattorihanzo_exercises_reorder"),
     path("hattorihanzo/exercises/<int:pk>/default-reps/", exercise_default_reps, name="exercise_default_reps"),
+    path("hattorihanzo/exercises/<int:pk>/description/", exercise_description, name="exercise_description"),
+
 
     # --- Exercises base ---
     path("exercises/", exercise_list, name="exercise_list"),
