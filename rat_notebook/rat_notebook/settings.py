@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # --- Аутентификация / редиректы ---
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = "/dashboard/"
-LOGOUT_REDIRECT_URL = "/accounts/login/"
+LOGOUT_REDIRECT_URL = "/login/"
 
 # --- Безопасность / окружение ---
 # В проде лучше брать из переменной окружения:
