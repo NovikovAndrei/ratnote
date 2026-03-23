@@ -147,20 +147,18 @@ def event_detail(request, event_id):
 
 @login_required
 @permission_required('results.change_disciplineresult', raise_exception=True)
-def edit_result(request, event_id, pk):
-    event = get_object_or_404(Event, pk=event_id)
-    r = get_object_or_404(DisciplineResult, pk=pk, athlete__event=event)
+def edit_result(request, result_id):
+    r = get_object_or_404(DisciplineResult, pk=result_id)
+    event = r.athlete.event
     group_param = request.GET.get('group') or ('C' if r.athlete.is_champion else r.athlete.growth_category)
 
     if request.method == 'POST':
         form = DisciplineResultForm(request.POST, instance=r, event=event)
-        # визуально заблокированы — но главное, ниже жёстко фиксируем
         form.fields['athlete'].disabled = True
         form.fields['discipline'].disabled = True
 
         if form.is_valid():
             obj = form.save(commit=False)
-            # серверная защита: не позволяем сменить спортсмена/дисциплину
             obj.athlete_id = r.athlete_id
             obj.discipline_id = r.discipline_id
             obj.save()
@@ -168,7 +166,6 @@ def edit_result(request, event_id, pk):
             return redirect(f"{url}?group={group_param}#pane-{group_param}")
     else:
         form = DisciplineResultForm(instance=r, event=event)
-        # в UI селекты неактивны
         form.fields['athlete'].disabled = True
         form.fields['discipline'].disabled = True
 
@@ -176,16 +173,17 @@ def edit_result(request, event_id, pk):
 
 
 @login_required
-@permission_required('results.delete_disciplineresult', raise_exception=True)  # <—
-def delete_result(request, event_id, pk):
-    event = get_object_or_404(Event, pk=event_id)
-    r = get_object_or_404(DisciplineResult, pk=pk, athlete__event=event)
+@permission_required('results.delete_disciplineresult', raise_exception=True)
+def delete_result(request, result_id):
+    r = get_object_or_404(DisciplineResult, pk=result_id)
+    event = r.athlete.event
     group_param = request.GET.get('group') or ('C' if r.athlete.is_champion else r.athlete.growth_category)
 
     if request.method == 'POST':
         r.delete()
         url = reverse('event_detail', args=[event.id])
         return redirect(f"{url}?group={group_param}#pane-{group_param}")
+
     return render(request, 'results/confirm_delete.html', {'event': event, 'object': r})
 
 
@@ -491,10 +489,6 @@ def exercise_create(request):
 def exercise_default_reps(request, pk: int):
     ex = get_object_or_404(Exercise, pk=pk)
     return JsonResponse({"default_reps": ex.default_reps})
-
-
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect, render
 
 
 @login_required

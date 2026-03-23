@@ -187,11 +187,11 @@
                             {% if perms.results.change_disciplineresult or perms.results.delete_disciplineresult %}
                               <td>
                                 {% if perms.results.change_disciplineresult %}
-                                  <a href="{% url 'edit_result' event.id res.id %}?group={{ cat_code }}"
+                                  <a href="{% url 'edit_result' res.id %}?group={{ cat_code }}"
                                      class="btn btn-sm btn-outline-secondary btn-action">Ред.</a>
                                 {% endif %}
                                 {% if perms.results.delete_disciplineresult %}
-                                  <a href="{% url 'delete_result' event.id res.id %}?group={{ cat_code }}"
+                                  <a href="{% url 'delete_result' res.id %}?group={{ cat_code }}"
                                      class="btn btn-sm btn-outline-danger btn-action">Удал.</a>
                                 {% endif %}
                               </td>
