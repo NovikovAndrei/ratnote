@@ -25,6 +25,10 @@
       {{ form.disciplines.label_tag }} {{ form.disciplines }}
       {% for err in form.disciplines.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
     </div>
+    <div class="mb-3">
+    {{ form.norm_set.label_tag }} {{ form.norm_set }}
+    {% for err in form.norm_set.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
+    </div>
     <button type="submit" class="btn btn-primary">Сохранить</button>
     <a href="{% url 'event_list' %}" class="btn btn-secondary ms-2">Отмена</a>
   </form>

@@ -18,6 +18,14 @@ class Event(models.Model):
         default=False,
         help_text="Старые ивенты работают через Athlete, новые — через Dog/EventDog",
     )
+    norm_set = models.ForeignKey(
+        'QualificationNormSet',
+        on_delete=models.PROTECT,
+        related_name='events',
+        verbose_name="Набор квалификационных норм",
+        blank=True,
+        null=True,
+    )
 
     class Meta:
         verbose_name = "Событие"
@@ -45,6 +53,51 @@ class DisciplineType(models.Model):
 
     def __str__(self):
         return self.verbose
+
+
+class QualificationNormSet(models.Model):
+    name = models.CharField("Название набора норм", max_length=100, unique=True)
+    start_date = models.DateField("Дата начала действия", blank=True, null=True)
+    end_date = models.DateField("Дата окончания действия", blank=True, null=True)
+    is_active = models.BooleanField("Активный набор", default=False)
+
+    class Meta:
+        verbose_name = "Набор квалификационных норм"
+        verbose_name_plural = "Наборы квалификационных норм"
+        ordering = ["-start_date", "-id"]
+
+    def __str__(self):
+        return self.name
+
+
+class QualificationNorm(models.Model):
+    norm_set = models.ForeignKey(
+        QualificationNormSet,
+        on_delete=models.CASCADE,
+        related_name="norms",
+        verbose_name="Набор норм",
+    )
+    growth_category = models.CharField(
+        "Категория",
+        max_length=12,
+        choices=GROWTH_CHOICES,
+    )
+    discipline = models.ForeignKey(
+        DisciplineType,
+        on_delete=models.CASCADE,
+        related_name="qualification_norms",
+        verbose_name="Дисциплина",
+    )
+    value = models.FloatField("Значение нормы")
+
+    class Meta:
+        verbose_name = "Квалификационная норма"
+        verbose_name_plural = "Квалификационные нормы"
+        unique_together = ("norm_set", "growth_category", "discipline")
+        ordering = ["norm_set", "growth_category", "discipline"]
+
+    def __str__(self):
+        return f"{self.norm_set} | {self.growth_category} | {self.discipline.code}: {self.value}"
 
 
 class Dog(models.Model):
@@ -145,6 +198,7 @@ class EventDogResult(models.Model):
     def save(self, *args, **kwargs):
         if self.event_dog.is_champion:
             self.points = calculate_champion_points(
+                self.event_dog.event,
                 self.event_dog.growth_category,
                 self.discipline.code,
                 self.result

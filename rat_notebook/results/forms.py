@@ -2,7 +2,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from .models import (
     Athlete, DisciplineResult, Event,
-    Dog, EventDog, EventDogResult
+    Dog, EventDog, EventDogResult, QualificationNormSet, QualificationNorm
 )
 from django.forms import inlineformset_factory
 from django.forms.widgets import Select
@@ -23,6 +23,22 @@ VALIDATION_RULES = {
     'a_frame':      {'step': 1,    'min': 0,   'max': 80},
     'treadmill':    {'step': 0.01, 'min': 0,   'max': 120},  # секунды с сотыми
 }
+
+
+class QualificationNormValueForm(forms.ModelForm):
+    class Meta:
+        model = QualificationNorm
+        fields = ['value']
+        widgets = {
+            'value': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Значение нормы',
+                'step': '0.01',
+            }),
+        }
+        labels = {
+            'value': 'Значение нормы',
+        }
 
 
 # ---- Спортсмен ----
@@ -284,17 +300,30 @@ class EventDogResultForm(forms.ModelForm):
 class EventForm(forms.ModelForm):
     class Meta:
         model = Event
-        fields = ['name', 'date', 'disciplines']
+        fields = ['name', 'date', 'disciplines', 'norm_set']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'disciplines': forms.CheckboxSelectMultiple(),
+            'norm_set': forms.Select(attrs={'class': 'form-select'}),
         }
         labels = {
             'name': 'Название события',
-            'date': 'Дата события',
+            'date': 'Дата',
             'disciplines': 'Дисциплины',
+            'norm_set': 'Набор квалификационных норм',
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['norm_set'].queryset = QualificationNormSet.objects.order_by('-is_active', '-start_date', 'name')
+        self.fields['norm_set'].required = True
+
+    def clean_norm_set(self):
+        norm_set = self.cleaned_data.get('norm_set')
+        if not norm_set:
+            raise forms.ValidationError('Выберите набор квалификационных норм.')
+        return norm_set
 
 
 class PuppyTrainingSessionForm(forms.ModelForm):

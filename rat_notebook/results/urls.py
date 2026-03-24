@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     event_list, event_detail, edit_result, delete_result, event_create, event_edit,
     login_view, custom_logout, dashboard, dog_list, edit_event_dog_result, delete_event_dog_result,
+    qualification_norm_set_list, qualification_norm_set_detail,
 
     # puppies
     puppy_list, puppy_create, puppy_edit, puppy_diary,
@@ -15,7 +16,7 @@ from .views import (
     hattorihanzo_exercise_delete, hattorihanzo_exercises_reorder,
 
     # exercises base
-    exercise_list, exercise_create, exercise_default_reps, exercise_description
+    exercise_list, exercise_create, exercise_default_reps, exercise_description, edit_qualification_norm,
 )
 
 urlpatterns = [
@@ -32,6 +33,10 @@ urlpatterns = [
     path("results/<int:result_id>/delete/", delete_result, name="delete_result"),
     path("event-dog-results/<int:result_id>/edit/", edit_event_dog_result, name="edit_event_dog_result"),
     path("event-dog-results/<int:result_id>/delete/", delete_event_dog_result, name="delete_event_dog_result"),
+
+    path("qualification-norms/", qualification_norm_set_list, name="qualification_norm_set_list"),
+    path("qualification-norms/<int:norm_set_id>/", qualification_norm_set_detail, name="qualification_norm_set_detail"),
+    path("qualification-norms/norm/<int:norm_id>/edit/", edit_qualification_norm, name="edit_qualification_norm"),
 
     path("logout/", custom_logout, name="logout"),
 

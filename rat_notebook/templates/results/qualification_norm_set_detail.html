@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex gap-2 mb-3">
+    <a href="{% url 'qualification_norm_set_list' %}" class="btn btn-outline-light">← Все наборы норм</a>
+    <a href="{% url 'event_list' %}" class="btn btn-outline-light">Все события</a>
+  </div>
+
+  <h1 class="mb-2">{{ norm_set.name }}</h1>
+
+  <div class="mb-4 text-muted">
+    {% if norm_set.start_date or norm_set.end_date %}
+      Период: {{ norm_set.start_date|default:"—" }} — {{ norm_set.end_date|default:"—" }}
+    {% else %}
+      Период не задан
+    {% endif %}
+    {% if norm_set.is_active %}
+      · Активный набор
+    {% endif %}
+  </div>
+
+  {% if category_norms %}
+    <ul class="nav nav-tabs" id="normTabs" role="tablist">
+      {% for cat_code, data in category_norms.items %}
+        {% with label=data.0 %}
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link {% if active_group == cat_code %}active{% endif %}"
+            id="tab-{{ cat_code }}"
+            data-bs-toggle="tab"
+            data-bs-target="#pane-{{ cat_code }}"
+            type="button"
+            role="tab"
+            aria-controls="pane-{{ cat_code }}"
+            aria-selected="{% if active_group == cat_code %}true{% else %}false{% endif %}"
+          >{{ label }}</button>
+        </li>
+        {% endwith %}
+      {% endfor %}
+    </ul>
+
+    <div class="tab-content mt-3" id="normTabsContent">
+      {% for cat_code, data in category_norms.items %}
+        {% with label=data.0 norms_list=data.1 %}
+        <div class="tab-pane fade {% if active_group == cat_code %}show active{% endif %}"
+             id="pane-{{ cat_code }}"
+             role="tabpanel"
+             aria-labelledby="tab-{{ cat_code }}">
+          <div class="card p-3 mb-4">
+            <table class="table table-striped mb-0">
+              <thead>
+                <tr>
+                  <th>Дисциплина</th>
+                  <th>Норма</th>
+                  {% if perms.results.change_qualificationnorm %}
+                    <th>Действия</th>
+                  {% endif %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for norm in norms_list %}
+                  <tr>
+                    <td>{{ norm.discipline.verbose }}</td>
+                    <td>
+                      {% if norm.discipline.code == 'treadmill' %}
+                        {{ norm.value|floatformat:2 }}
+                      {% else %}
+                        {{ norm.value|floatformat:0 }}
+                      {% endif %}
+                    </td>
+                    {% if perms.results.change_qualificationnorm %}
+                      <td>
+                        <a href="{% url 'edit_qualification_norm' norm.id %}"
+                           class="btn btn-sm btn-outline-secondary">
+                          Ред.
+                        </a>
+                      </td>
+                    {% endif %}
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="{% if perms.results.change_qualificationnorm %}3{% else %}2{% endif %}">
+                      Для этой категории норм пока нет
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endwith %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-light">
+      В этом наборе пока нет норм.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

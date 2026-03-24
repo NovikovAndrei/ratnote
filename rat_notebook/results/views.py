@@ -11,20 +11,21 @@ from django.db import transaction
 from django.utils.dateparse import parse_date
 from .models import (
     Event, DisciplineResult, PuppyTrainingSession, PuppyTrainingExercise,
-    Exercise, Puppy, Dog, EventDog, EventDogResult, GROWTH_CHOICES
+    Exercise, Puppy, Dog, EventDog, EventDogResult, GROWTH_CHOICES, QualificationNormSet, QualificationNorm
 )
 
 from .forms import (
     AthleteForm, DisciplineResultForm, EventForm, LoginForm,
     PuppyTrainingSessionForm, PuppyTrainingExerciseCreateFormSet,
     PuppyTrainingExerciseEditFormSet, ExerciseForm, PuppyForm,
-    DogForm, EventDogForm, EventDogResultForm
+    DogForm, EventDogForm, EventDogResultForm, QualificationNormValueForm
 )
 from .scoring import (
     assign_growth_scores,
     compute_final_places,
     assign_event_dog_growth_scores,
     compute_event_dog_final_places,
+    recalculate_event_dog_champion_scores
 )
 
 
@@ -164,6 +165,7 @@ def event_detail(request, event_id):
             event_dog_result_form = EventDogResultForm(prefix='edres', event=event)
 
         # Пересчёт очков по новой схеме
+        recalculate_event_dog_champion_scores(event)
         assign_event_dog_growth_scores(event)
         standings_new = compute_event_dog_final_places(event, include_champions=False)
 
@@ -354,6 +356,69 @@ def delete_event_dog_result(request, result_id):
         'result_obj': result,
         'event': event,
         'group_code': group_code,
+    })
+
+
+@login_required
+@permission_required('results.view_qualificationnormset', raise_exception=True)
+def qualification_norm_set_list(request):
+    norm_sets = QualificationNormSet.objects.order_by('-is_active', '-start_date', 'name')
+
+    return render(request, 'results/qualification_norm_set_list.html', {
+        'norm_sets': norm_sets,
+    })
+
+
+@login_required
+@permission_required('results.view_qualificationnorm', raise_exception=True)
+def qualification_norm_set_detail(request, norm_set_id):
+    norm_set = get_object_or_404(
+        QualificationNormSet.objects.prefetch_related('norms', 'norms__discipline'),
+        pk=norm_set_id
+    )
+
+    norms_qs = norm_set.norms.select_related('discipline').order_by('growth_category', 'discipline__verbose')
+
+    category_norms = {}
+
+    for code, _label in GROWTH_CHOICES:
+        rows = list(norms_qs.filter(growth_category=code))
+        if rows:
+            category_norms[code] = (code, rows)
+
+    active_group = request.GET.get('group')
+    if active_group not in category_norms:
+        active_group = next(iter(category_norms), None)
+
+    return render(request, 'results/qualification_norm_set_detail.html', {
+        'norm_set': norm_set,
+        'category_norms': category_norms,
+        'active_group': active_group,
+    })
+
+
+@login_required
+@permission_required('results.change_qualificationnorm', raise_exception=True)
+def edit_qualification_norm(request, norm_id):
+    norm = get_object_or_404(
+        QualificationNorm.objects.select_related('norm_set', 'discipline'),
+        pk=norm_id
+    )
+
+    if request.method == 'POST':
+        form = QualificationNormValueForm(request.POST, instance=norm)
+        if form.is_valid():
+            updated = form.save()
+            group_code = updated.growth_category
+            url = reverse('qualification_norm_set_detail', args=[updated.norm_set.id])
+            return redirect(f"{url}?group={group_code}#pane-{group_code}")
+    else:
+        form = QualificationNormValueForm(instance=norm)
+
+    return render(request, 'results/edit_qualification_norm.html', {
+        'form': form,
+        'norm': norm,
+        'norm_set': norm.norm_set,
     })
 
 

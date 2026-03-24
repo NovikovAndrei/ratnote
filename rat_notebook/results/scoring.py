@@ -46,17 +46,32 @@ def _full_steps(delta: float, step: float) -> int:
     return floor((delta + eps) / step)
 
 
-def calculate_champion_points(category: str, discipline: str, result: Optional[float]) -> int:
+def get_qualifying_norm(event, growth_category, discipline_code):
+    if not event or not event.norm_set:
+        return None
+
+    from .models import QualificationNorm
+
+    norm = QualificationNorm.objects.filter(
+        norm_set=event.norm_set,
+        growth_category=growth_category,
+        discipline__code=discipline_code,
+    ).first()
+
+    return norm.value if norm else None
+
+
+def calculate_champion_points(event, category: str, discipline: str, result: Optional[float]) -> int:
     """
-    Начисление очков «чемпионам» по нормативам для их категории.
+    Начисление очков «чемпионам» по нормативам из БД для набора норм,
+    привязанного к конкретному событию.
     Для treadmill — меньше это лучше; остальные — больше лучше.
     """
-    norms = QUALIFYING_NORMS.get(category)
     cfg = STEP_CONFIG.get(discipline)
-    if norms is None or cfg is None:
+    if cfg is None:
         return 0
 
-    norm = norms.get(discipline)
+    norm = get_qualifying_norm(event, category, discipline)
     if norm is None:
         return 0
 
@@ -68,18 +83,46 @@ def calculate_champion_points(category: str, discipline: str, result: Optional[f
         # Ограничение на «слишком долго»
         if result > 60:
             return -10
-        # Норму не выполнил (медленнее нормы)
+        # Норму не выполнил
         if result > norm:
             return 0
-        delta = norm - result  # улучшение в секундах
+        delta = norm - result
     else:
-        # Норму не выполнил (меньше нормы в см/см/…)
+        # Норму не выполнил
         if result < norm:
             return 0
         delta = result - norm
 
     steps = _full_steps(delta, cfg['step_size'])
     return 10 + steps * cfg['points_per_step']
+
+
+def recalculate_event_dog_champion_scores(event):
+    """
+    Пересчёт очков чемпионов по новой схеме:
+    очки считаются по нормам из event.norm_set.
+    """
+    from .models import EventDogResult
+
+    qs = (
+        EventDogResult.objects
+        .filter(
+            event_dog__event=event,
+            event_dog__is_champion=True,
+        )
+        .select_related('event_dog', 'event_dog__event', 'discipline')
+    )
+
+    for r in qs:
+        new_points = calculate_champion_points(
+            r.event_dog.event,
+            r.event_dog.growth_category,
+            r.discipline.code,
+            r.result,
+        )
+        if r.points != new_points:
+            r.points = new_points
+            r.save(update_fields=['points'])
 
 
 def assign_growth_scores(event):

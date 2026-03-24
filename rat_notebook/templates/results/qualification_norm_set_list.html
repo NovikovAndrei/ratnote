@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex gap-2 mb-3">
+    <a href="{% url 'event_list' %}" class="btn btn-outline-light">← Все события</a>
+  </div>
+
+  <h1 class="mb-4">Нормы квалификации</h1>
+
+  <div class="card p-3">
+    <table class="table table-striped mb-0">
+      <thead>
+        <tr>
+          <th>Название</th>
+          <th>Период</th>
+          <th>Активный</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for norm_set in norm_sets %}
+          <tr>
+            <td>{{ norm_set.name }}</td>
+            <td>
+              {% if norm_set.start_date or norm_set.end_date %}
+                {{ norm_set.start_date|default:"—" }} — {{ norm_set.end_date|default:"—" }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>{% if norm_set.is_active %}Да{% else %}Нет{% endif %}</td>
+            <td>
+              <a href="{% url 'qualification_norm_set_detail' norm_set.id %}"
+                 class="btn btn-sm btn-outline-secondary">
+                Открыть
+              </a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="4">Наборов норм пока нет</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
