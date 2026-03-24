@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex gap-2 mb-3">
+    <a href="{% url 'event_detail' event.id %}?group={{ group_code }}#pane-{{ group_code }}" class="btn btn-outline-light">
+      ← Назад к событию
+    </a>
+  </div>
+
+  <h1 class="mb-4">Удалить результат</h1>
+
+  <div class="card p-4">
+    <p>
+      Удалить результат <strong>{{ result_obj.discipline.verbose }}</strong>
+      для собаки <strong>{{ result_obj.event_dog.name }}</strong>?
+    </p>
+
+    <ul>
+      <li>Результат: {{ result_obj.result }}</li>
+      <li>Очки: {{ result_obj.points|floatformat:0 }}</li>
+    </ul>
+
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Удалить</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

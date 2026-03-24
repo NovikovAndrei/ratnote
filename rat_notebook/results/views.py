@@ -309,6 +309,54 @@ def dog_list(request):
     })
 
 
+@login_required
+@permission_required('results.change_eventdogresult', raise_exception=True)
+def edit_event_dog_result(request, result_id):
+    result = get_object_or_404(
+        EventDogResult.objects.select_related('event_dog', 'event_dog__event', 'discipline'),
+        pk=result_id
+    )
+    event = result.event_dog.event
+
+    if request.method == 'POST':
+        form = EventDogResultForm(request.POST, instance=result, prefix='edres', event=event)
+        if form.is_valid():
+            updated = form.save()
+            group_code = 'C' if updated.event_dog.is_champion else updated.event_dog.growth_category
+            url = reverse('event_detail', args=[event.id])
+            return redirect(f"{url}?group={group_code}#pane-{group_code}")
+    else:
+        form = EventDogResultForm(instance=result, prefix='edres', event=event)
+
+    return render(request, 'results/edit_event_dog_result.html', {
+        'form': form,
+        'result_obj': result,
+        'event': event,
+    })
+
+
+@login_required
+@permission_required('results.delete_eventdogresult', raise_exception=True)
+def delete_event_dog_result(request, result_id):
+    result = get_object_or_404(
+        EventDogResult.objects.select_related('event_dog', 'event_dog__event', 'discipline'),
+        pk=result_id
+    )
+    event = result.event_dog.event
+    group_code = 'C' if result.event_dog.is_champion else result.event_dog.growth_category
+
+    if request.method == 'POST':
+        result.delete()
+        url = reverse('event_detail', args=[event.id])
+        return redirect(f"{url}?group={group_code}#pane-{group_code}")
+
+    return render(request, 'results/delete_event_dog_result.html', {
+        'result_obj': result,
+        'event': event,
+        'group_code': group_code,
+    })
+
+
 def login_view(request):
     if request.method == 'POST':
         form = LoginForm(request.POST)

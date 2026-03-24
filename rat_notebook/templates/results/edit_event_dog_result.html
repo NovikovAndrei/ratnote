@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex gap-2 mb-3">
+    <a href="{% url 'event_detail' event.id %}" class="btn btn-outline-light">← Назад к событию</a>
+  </div>
+
+  <h1 class="mb-4">Редактировать результат</h1>
+
+  <div class="card p-4">
+    <form method="post">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+          {% for e in form.non_field_errors %}
+            <div>{{ e }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="mb-3">
+        {{ form.event_dog.label_tag }}
+        {{ form.event_dog }}
+        {% for err in form.event_dog.errors %}
+          <div class="text-danger">{{ err }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="mb-3">
+        {{ form.discipline.label_tag }}
+        {{ form.discipline }}
+        {% for err in form.discipline.errors %}
+          <div class="text-danger">{{ err }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="mb-3">
+        {{ form.result.label_tag }}
+        {{ form.result }}
+        {% for err in form.result.errors %}
+          <div class="text-danger">{{ err }}</div>
+        {% endfor %}
+      </div>
+
+      <button type="submit" class="btn btn-success">Сохранить</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
