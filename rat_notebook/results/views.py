@@ -9,10 +9,23 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.db import transaction
 from django.utils.dateparse import parse_date
-from .models import Event, DisciplineResult, PuppyTrainingSession, PuppyTrainingExercise, Exercise, Puppy
-from .forms import AthleteForm, DisciplineResultForm, EventForm, LoginForm, PuppyTrainingSessionForm, \
-    PuppyTrainingExerciseCreateFormSet, PuppyTrainingExerciseEditFormSet, ExerciseForm, PuppyForm
-from .scoring import assign_growth_scores, compute_final_places
+from .models import (
+    Event, DisciplineResult, PuppyTrainingSession, PuppyTrainingExercise,
+    Exercise, Puppy, Dog, EventDog, EventDogResult, GROWTH_CHOICES
+)
+
+from .forms import (
+    AthleteForm, DisciplineResultForm, EventForm, LoginForm,
+    PuppyTrainingSessionForm, PuppyTrainingExerciseCreateFormSet,
+    PuppyTrainingExerciseEditFormSet, ExerciseForm, PuppyForm,
+    DogForm, EventDogForm, EventDogResultForm
+)
+from .scoring import (
+    assign_growth_scores,
+    compute_final_places,
+    assign_event_dog_growth_scores,
+    compute_event_dog_final_places,
+)
 
 
 @login_required
@@ -50,86 +63,151 @@ def event_edit(request, event_id):
 
 
 @login_required
-@permission_required('results.view_event', raise_exception=True)   # <— только право на просмотр страницы
+@permission_required('results.view_event', raise_exception=True)
 def event_detail(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
+    is_legacy_event = event.is_legacy
 
-    # --- добавление спортсмена — требуем явное право add_athlete
-    if request.method == 'POST' and 'add_athlete' in request.POST:
-        if not request.user.has_perm('results.add_athlete'):
-            return HttpResponseForbidden('Недостаточно прав')
-        a_form = AthleteForm(request.POST, prefix='ath', event=event)
-        if a_form.is_valid():
-            at = a_form.save(commit=False)
-            at.event = event
-            at.save()
-            group_code = 'C' if at.is_champion else at.growth_category
-            url = reverse('event_detail', args=[event.id])
-            return redirect(f"{url}?group={group_code}#pane-{group_code}")
+    # по умолчанию
+    a_form = None
+    r_form = None
+    dog_form = None
+    event_dog_form = None
+    event_dog_result_form = None
+
+    if is_legacy_event:
+        # =========================
+        # СТАРЫЙ ИВЕНТ: ТОЛЬКО АРХИВ
+        # =========================
+
+        # Ничего нового добавлять не даём.
+        # Просто считаем старые очки и показываем старую историю.
+        assign_growth_scores(event)
+        standings_old = compute_final_places(event, include_champions=False)
+
+        category_rankings = {}
+
+        # Чемпионы (старая схема)
+        champs_old = list(
+            event.athletes.filter(is_champion=True)
+            .prefetch_related("results", "results__discipline")
+        )
+
+        if champs_old:
+            champs = []
+            for a in champs_old:
+                total = sum(int(r.points or 0) for r in a.results.all())
+                champs.append((a, total))
+
+            champs.sort(key=lambda p: (p[1], p[0].name), reverse=True)
+
+            last = None
+            place = 0
+            idx = 0
+            champs_rows = []
+
+            for a, total in champs:
+                idx += 1
+                if total != last:
+                    place = idx
+                    last = total
+                setattr(a, "place", place)
+                champs_rows.append(a)
+
+            category_rankings["C"] = ("Чемпионы", champs_rows)
+
+        # Ростовые группы (старая схема)
+        for code, rows in standings_old.items():
+            lst = []
+            for row in rows:
+                a = row["athlete"]
+                setattr(a, "place", row["place"])
+                lst.append(a)
+            if lst:
+                category_rankings[code] = (code, lst)
+
     else:
-        a_form = AthleteForm(prefix='ath', event=event)
+        # =========================
+        # НОВЫЙ ИВЕНТ: ТОЛЬКО НОВАЯ СХЕМА
+        # =========================
 
-    # --- добавление результата — требуем право add_disciplineresult
-    if request.method == 'POST' and 'add_result' in request.POST:
-        if not request.user.has_perm('results.add_disciplineresult'):
-            return HttpResponseForbidden('Недостаточно прав')
-        r_form = DisciplineResultForm(request.POST, prefix='res', event=event)
-        if r_form.is_valid():
-            res = r_form.save(commit=False)
-            res.athlete = r_form.cleaned_data['athlete']
-            res.save()
-            ath = res.athlete
-            group_code = 'C' if ath.is_champion else ath.growth_category
-            url = reverse('event_detail', args=[event.id])
-            return redirect(f"{url}?group={group_code}#pane-{group_code}")
-    else:
-        r_form = DisciplineResultForm(prefix='res', event=event)
+        # --- добавление собаки из базы в ивент
+        if request.method == 'POST' and 'add_event_dog' in request.POST:
+            if not request.user.has_perm('results.add_eventdog'):
+                return HttpResponseForbidden('Недостаточно прав')
+            event_dog_form = EventDogForm(request.POST, prefix='edog', event=event)
+            if event_dog_form.is_valid():
+                obj = event_dog_form.save(commit=False)
+                obj.event = event
+                obj.growth_category = obj.dog.growth_category
+                obj.is_champion = obj.dog.is_champion
+                obj.save()
 
-    # Пересчёт очков по снарядам (идемпотентен)
-    assign_growth_scores(event)
+                group_code = 'C' if obj.dog.is_champion else obj.dog.growth_category
+                url = reverse('event_detail', args=[event.id])
+                return redirect(f"{url}?group={group_code}#pane-{group_code}")
+        else:
+            event_dog_form = EventDogForm(prefix='edog', event=event)
 
-    # Готовим таблицы мест по competition внутри ростовых/породных групп
-    standings = compute_final_places(event, include_champions=False)
+        # --- добавление результата новой собаке
+        if request.method == 'POST' and 'add_event_dog_result' in request.POST:
+            if not request.user.has_perm('results.add_eventdogresult'):
+                return HttpResponseForbidden('Недостаточно прав')
+            event_dog_result_form = EventDogResultForm(request.POST, prefix='edres', event=event)
+            if event_dog_result_form.is_valid():
+                res = event_dog_result_form.save()
+                event_dog = res.event_dog
+                group_code = 'C' if event_dog.is_champion else event_dog.growth_category
+                url = reverse('event_detail', args=[event.id])
+                return redirect(f"{url}?group={group_code}#pane-{group_code}")
+        else:
+            event_dog_result_form = EventDogResultForm(prefix='edres', event=event)
 
-    category_rankings = {}
+        # Пересчёт очков по новой схеме
+        assign_event_dog_growth_scores(event)
+        standings_new = compute_event_dog_final_places(event, include_champions=False)
 
-    # Чемпионы
-    champs_qs = (
-        event.athletes.filter(is_champion=True)
-        .prefetch_related("results", "results__discipline")
-    )
-    if champs_qs.exists():
-        champs = []
-        for a in champs_qs:
-            total = sum(int(r.points or 0) for r in a.results.all())
-            champs.append((a, total))
+        category_rankings = {}
 
-        champs.sort(key=lambda p: (p[1], p[0].name), reverse=True)
+        # Чемпионы (новая схема)
+        champs_new = list(
+            event.event_dogs.filter(is_champion=True)
+            .select_related("dog")
+            .prefetch_related("results", "results__discipline")
+        )
 
-        last = None
-        place = 0
-        idx = 0
-        champs_rows = []
-        for a, total in champs:
-            idx += 1
-            if total != last:
-                place = idx
-                last = total
-            setattr(a, "place", place)  # ← только place
-            champs_rows.append(a)
+        if champs_new:
+            champs = []
+            for ed in champs_new:
+                total = sum(int(r.points or 0) for r in ed.results.all())
+                champs.append((ed, total))
 
-        category_rankings["C"] = ("Чемпионы", champs_rows)
+            champs.sort(key=lambda p: (p[1], p[0].dog.name), reverse=True)
 
-    # Ростовые/породные группы
-    for code, rows in standings.items():
-        lst = []
-        for row in rows:
-            a = row["athlete"]
-            setattr(a, "place", row["place"])  # ← только place
-            lst.append(a)
-        if lst:
-            category_rankings[code] = (code, lst)
+            last = None
+            place = 0
+            idx = 0
+            champs_rows = []
 
+            for ed, total in champs:
+                idx += 1
+                if total != last:
+                    place = idx
+                    last = total
+                setattr(ed, "place", place)
+                champs_rows.append(ed)
+
+            category_rankings["C"] = ("Чемпионы", champs_rows)
+
+        # Ростовые группы (новая схема)
+        for code, rows in standings_new.items():
+            lst = []
+            for row in rows:
+                ed = row["athlete"]
+                setattr(ed, "place", row["place"])
+                lst.append(ed)
+            if lst:
+                category_rankings[code] = (code, lst)
 
     # Какая вкладка активна
     active_group = request.GET.get("group")
@@ -138,8 +216,14 @@ def event_detail(request, event_id):
 
     return render(request, "results/event_detail.html", {
         "event": event,
+        "is_legacy_event": is_legacy_event,
+
         "athlete_form": a_form,
         "result_form": r_form,
+
+        "event_dog_form": event_dog_form,
+        "event_dog_result_form": event_dog_result_form,
+
         "category_rankings": category_rankings,
         "active_group": active_group,
     })
@@ -185,6 +269,44 @@ def delete_result(request, result_id):
         return redirect(f"{url}?group={group_param}#pane-{group_param}")
 
     return render(request, 'results/confirm_delete.html', {'event': event, 'object': r})
+
+
+@login_required
+@permission_required('results.view_dog', raise_exception=True)
+def dog_list(request):
+    if request.method == 'POST':
+        if not request.user.has_perm('results.add_dog'):
+            return HttpResponseForbidden('Недостаточно прав')
+        form = DogForm(request.POST, prefix='dog')
+        if form.is_valid():
+            dog = form.save()
+            group_code = 'C' if dog.is_champion else dog.growth_category
+            return redirect(f"{reverse('dog_list')}?group={group_code}#pane-{group_code}")
+    else:
+        form = DogForm(prefix='dog')
+
+    dogs_qs = Dog.objects.order_by('name')
+
+    category_dogs = {}
+
+    champs = list(dogs_qs.filter(is_champion=True))
+    if champs:
+        category_dogs['C'] = ('Чемпионы', champs)
+
+    for code, label in GROWTH_CHOICES:
+        dogs = list(dogs_qs.filter(is_champion=False, growth_category=code))
+        if dogs:
+            category_dogs[code] = (code, dogs)
+
+    active_group = request.GET.get('group')
+    if active_group not in category_dogs:
+        active_group = next(iter(category_dogs), None)
+
+    return render(request, 'results/dog_list.html', {
+        'form': form,
+        'category_dogs': category_dogs,
+        'active_group': active_group,
+    })
 
 
 def login_view(request):

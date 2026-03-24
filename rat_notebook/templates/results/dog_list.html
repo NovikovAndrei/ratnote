@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex gap-2 mb-3">
+    <a href="{% url 'event_list' %}" class="btn btn-outline-light">← Все события</a>
+  </div>
+
+  <h1 class="mb-4">База собак</h1>
+
+  {% if perms.results.add_dog %}
+  <div class="card p-4 mb-4">
+    <h3 class="mb-3">Добавить собаку</h3>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+
+      <div class="mb-3">
+        {{ form.name.label_tag }}
+        {{ form.name }}
+        {% for err in form.name.errors %}
+          <div class="text-danger">{{ err }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="mb-3">
+        {{ form.growth_category.label_tag }}
+        {{ form.growth_category }}
+        {% for err in form.growth_category.errors %}
+          <div class="text-danger">{{ err }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="form-check mb-3">
+        <label class="form-check-label inline-gap">
+          {{ form.is_champion.label }}
+          {{ form.is_champion }}
+        </label>
+        {% for err in form.is_champion.errors %}
+          <div class="text-danger">{{ err }}</div>
+        {% endfor %}
+      </div>
+
+      <button class="btn btn-success">Добавить</button>
+    </form>
+  </div>
+  {% endif %}
+
+  {% if category_dogs %}
+    <ul class="nav nav-tabs" id="dogTabs" role="tablist">
+      {% for cat_code, data in category_dogs.items %}
+        {% with label=data.0 %}
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link {% if active_group == cat_code %}active{% endif %}"
+            id="tab-{{ cat_code }}"
+            data-bs-toggle="tab"
+            data-bs-target="#pane-{{ cat_code }}"
+            type="button"
+            role="tab"
+            aria-controls="pane-{{ cat_code }}"
+            aria-selected="{% if active_group == cat_code %}true{% else %}false{% endif %}"
+          >{{ label }}</button>
+        </li>
+        {% endwith %}
+      {% endfor %}
+    </ul>
+
+    <div class="tab-content mt-3" id="dogTabsContent">
+      {% for cat_code, data in category_dogs.items %}
+        {% with label=data.0 dogs_list=data.1 %}
+        <div class="tab-pane fade {% if active_group == cat_code %}show active{% endif %}"
+             id="pane-{{ cat_code }}"
+             role="tabpanel"
+             aria-labelledby="tab-{{ cat_code }}">
+          <div class="card p-3 mb-4">
+            <table class="table table-striped mb-0">
+              <thead>
+                <tr>
+                  <th>Имя</th>
+                  <th>Категория</th>
+                  <th>Чемпион</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for dog in dogs_list %}
+                  <tr>
+                    <td>{{ dog.name }}</td>
+                    <td>{{ dog.growth_category }}</td>
+                    <td>{% if dog.is_champion %}Да{% else %}Нет{% endif %}</td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="3">Собак в этой категории пока нет</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endwith %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-light">
+      В базе пока нет собак.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

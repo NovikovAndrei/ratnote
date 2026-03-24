@@ -1,6 +1,9 @@
 from django import forms
 from django.core.exceptions import ValidationError
-from .models import Athlete, DisciplineResult, Event
+from .models import (
+    Athlete, DisciplineResult, Event,
+    Dog, EventDog, EventDogResult
+)
 from django.forms import inlineformset_factory
 from django.forms.widgets import Select
 from .models import PuppyTrainingSession, PuppyTrainingExercise, Exercise, Puppy
@@ -62,6 +65,70 @@ class AthleteForm(forms.ModelForm):
             if qs.exists():
                 raise forms.ValidationError('Спортсмен с таким именем уже существует в этом событии.')
         return name
+
+
+class DogForm(forms.ModelForm):
+    class Meta:
+        model = Dog
+        fields = ['name', 'growth_category', 'is_champion']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Имя собаки'
+            }),
+            'growth_category': forms.Select(attrs={'class': 'form-select'}),
+            'is_champion': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'growth_category': 'Ростовая категория',
+            'is_champion': 'Чемпион:',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.label_suffix = ''
+
+    def clean_name(self):
+        name = self.cleaned_data.get('name')
+        if not name:
+            return name
+        return name.strip()
+
+
+class EventDogForm(forms.ModelForm):
+    class Meta:
+        model = EventDog
+        fields = ['dog']
+        widgets = {
+            'dog': forms.Select(attrs={'class': 'form-select'}),
+        }
+        labels = {
+            'dog': 'Выберите собаку',
+        }
+
+    def __init__(self, *args, event=None, **kwargs):
+        self.event = event
+        super().__init__(*args, **kwargs)
+        self.label_suffix = ''
+
+        qs = Dog.objects.order_by('name')
+        if event is not None:
+            qs = qs.exclude(event_entries__event=event)
+
+        self.fields['dog'].queryset = qs
+
+        def dog_label(obj):
+            cup = ' 🏆' if obj.is_champion else ''
+            return f"{obj.name} ({obj.growth_category}){cup}"
+
+        self.fields['dog'].label_from_instance = dog_label
+
+    def clean_dog(self):
+        dog = self.cleaned_data.get('dog')
+        if dog and self.event:
+            if EventDog.objects.filter(event=self.event, dog=dog).exists():
+                raise forms.ValidationError('Эта собака уже добавлена в событие.')
+        return dog
 
 
 # ---- Результат дисциплины ----
@@ -133,6 +200,78 @@ class DisciplineResultForm(forms.ModelForm):
                     )
 
                 # проверка кратности шагу
+                rem = (result - mn) / step
+                if abs(round(rem) - rem) > 1e-9:
+                    raise ValidationError(
+                        f"Результат для «{discipline.verbose}» должен быть кратен {step}."
+                    )
+        return result
+
+
+class EventDogResultForm(forms.ModelForm):
+    class Meta:
+        model = EventDogResult
+        fields = ['event_dog', 'discipline', 'result']
+        widgets = {
+            'event_dog': forms.Select(attrs={'class': 'form-select'}),
+            'discipline': forms.Select(attrs={'class': 'form-select'}),
+            'result': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Результат'
+            }),
+        }
+        labels = {
+            'event_dog': 'Выберите собаку',
+            'discipline': 'Выберите дисциплину',
+            'result': 'Результат'
+        }
+
+    def __init__(self, *args, event=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if event is not None:
+            self.fields['event_dog'].queryset = event.event_dogs.select_related('dog').order_by('dog__name')
+            self.fields['discipline'].queryset = event.disciplines.all()
+
+        def event_dog_label(obj):
+            cup = ' 🏆' if obj.is_champion else ''
+            return f"{obj.dog.name} ({obj.growth_category}){cup}"
+
+        self.fields['event_dog'].label_from_instance = event_dog_label
+
+        discipline = self.initial.get('discipline') or self.data.get('discipline')
+        if discipline:
+            try:
+                if hasattr(discipline, 'code'):
+                    code = discipline.code
+                else:
+                    disc_obj = self.fields['discipline'].queryset.get(pk=discipline)
+                    code = disc_obj.code
+
+                rules = VALIDATION_RULES.get(code)
+                if rules:
+                    self.fields['result'].widget.attrs.update({
+                        'step': rules['step'],
+                        'min': rules['min'],
+                        'max': rules['max'],
+                    })
+            except Exception:
+                pass
+
+    def clean_result(self):
+        result = self.cleaned_data.get('result')
+        discipline = self.cleaned_data.get('discipline')
+
+        if discipline and result is not None:
+            rules = VALIDATION_RULES.get(discipline.code)
+            if rules:
+                mn, mx, step = rules['min'], rules['max'], rules['step']
+
+                if not (mn <= result <= mx):
+                    raise ValidationError(
+                        f"Результат для «{discipline.verbose}» должен быть между {mn} и {mx}."
+                    )
+
                 rem = (result - mn) / step
                 if abs(round(rem) - rem) > 1e-9:
                     raise ValidationError(

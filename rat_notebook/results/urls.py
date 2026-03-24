@@ -2,7 +2,7 @@ from django.urls import path
 
 from .views import (
     event_list, event_detail, edit_result, delete_result, event_create, event_edit,
-    login_view, custom_logout, dashboard,
+    login_view, custom_logout, dashboard, dog_list,
 
     # puppies
     puppy_list, puppy_create, puppy_edit, puppy_diary,
@@ -23,6 +23,7 @@ urlpatterns = [
     path("login/", login_view, name="login_page"),
     path("dashboard/", dashboard, name="dashboard"),
 
+    path("dogs/", dog_list, name="dog_list"),
     path("events/", event_list, name="event_list"),
     path("events/add/", event_create, name="event_create"),
     path("events/<int:event_id>/", event_detail, name="event_detail"),

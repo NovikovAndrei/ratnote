@@ -3,255 +3,215 @@
 
 {% block content %}
 <div class="container mt-4">
-  <a href="{% url 'event_list' %}" class="btn btn-outline-light mb-3">← Все события</a>
+  <div class="d-flex gap-2 mb-3">
+    <a href="{% url 'event_list' %}" class="btn btn-outline-light">← Все события</a>
+    <a href="{% url 'dog_list' %}" class="btn btn-outline-light">База собак</a>
+  </div>
+
   <h1 class="mb-4">{{ event.name }} — {{ event.date }}</h1>
 
-  <div class="row g-4 mb-5">
-    {% if perms.results.add_athlete %}
-    <div class="col-md-6">
-      <div class="card p-4">
-        <h3 class="mb-4">Добавить спортсмена</h3>
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="add_athlete" value="1">
-          {{ athlete_form.non_field_errors }}
-
-          <div class="mb-3">
-            {{ athlete_form.name.label_tag }}{{ athlete_form.name }}
-            {% for err in athlete_form.name.errors %}
-              <div class="text-danger">{{ err }}</div>
-            {% endfor %}
-          </div>
-
-          <div class="mb-3">
-            {{ athlete_form.growth_category.label_tag }}{{ athlete_form.growth_category }}
-            {% for err in athlete_form.growth_category.errors %}
-              <div class="text-danger">{{ err }}</div>
-            {% endfor %}
-          </div>
-
-          <div class="form-check mb-3">
-            <label class="form-check-label inline-gap">
-              {{ athlete_form.is_champion.label }}
-              {{ athlete_form.is_champion }}
-            </label>
-            {% for err in athlete_form.is_champion.errors %}
-              <div class="text-danger">{{ err }}</div>
-            {% endfor %}
-          </div>
-
-          <button class="btn btn-primary">Добавить спортсмена</button>
-        </form>
-      </div>
+  {% if is_legacy_event %}
+    <div class="alert alert-secondary mb-4">
+      Архивный ивент. Данные доступны только для просмотра.
     </div>
-    {% endif %}
+  {% else %}
+    <div class="row g-4 mb-5">
 
-    {% if perms.results.add_disciplineresult %}
-    <div class="col-md-6">
-      <div class="card p-4">
-        <h3 class="mb-4">Добавить результат</h3>
+      {% if perms.results.add_eventdog %}
+      <div class="col-md-6">
+        <div class="card p-4 h-100">
+          <h3 class="mb-4">Добавить собаку в событие</h3>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="add_event_dog" value="1">
 
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="add_result" value="1">
+            {{ event_dog_form.non_field_errors }}
 
-          {% if result_form.non_field_errors %}
-            <div class="alert alert-danger">
-              {% for e in result_form.non_field_errors %}<div>{{ e }}</div>{% endfor %}
+            <div class="mb-3">
+              {{ event_dog_form.dog.label_tag }}
+              {{ event_dog_form.dog }}
+              {% for err in event_dog_form.dog.errors %}
+                <div class="text-danger">{{ err }}</div>
+              {% endfor %}
             </div>
-          {% endif %}
 
-          <div class="mb-3">
-            <label for="athleteSelect" class="form-label">{{ result_form.athlete.label }}:</label>
-            <select id="athleteSelect"
-                    name="{{ result_form.athlete.html_name }}"
-                    class="form-select">
-              <option value="">---------</option>
-              {% for ath in result_form.fields.athlete.queryset %}
-                <option value="{{ ath.pk }}"
-                        data-category="{{ ath.growth_category }}"
-                        data-champion="{{ ath.is_champion|yesno:'true,false' }}">
-                  {{ ath.name }} ({{ ath.growth_category }}){% if ath.is_champion %} 🏆{% endif %}
-                </option>
-              {% endfor %}
-            </select>
-            {% for err in result_form.athlete.errors %}
-              <div class="text-danger">{{ err }}</div>
-            {% endfor %}
-          </div>
-
-          <div class="mb-3">
-            <label for="id_discipline" class="form-label">{{ result_form.discipline.label }}:</label>
-            <select id="id_discipline"
-                    name="{{ result_form.discipline.html_name }}"
-                    class="form-select">
-              <option value="">---------</option>
-              {% for disc in result_form.fields.discipline.queryset %}
-                <option value="{{ disc.pk }}" data-code="{{ disc.code }}">
-                  {{ disc.verbose }}
-                </option>
-              {% endfor %}
-            </select>
-            {% for err in result_form.discipline.errors %}
-              <div class="text-danger">{{ err }}</div>
-            {% endfor %}
-          </div>
-
-          <div class="mb-3">
-            <label for="id_result" class="form-label">{{ result_form.result.label }}:</label>
-            <input type="number"
-                   id="id_result"
-                   name="{{ result_form.result.html_name }}"
-                   class="form-control"
-                   placeholder="Результат">
-            {% for err in result_form.result.errors %}
-              <div class="text-danger">{{ err }}</div>
-            {% endfor %}
-          </div>
-
-          <button class="btn btn-primary">Добавить результат</button>
-        </form>
-      </div>
-    </div>
-    {% endif %}
-  </div>
-
-  <ul class="nav nav-tabs" id="catTabs" role="tablist">
-    {% for cat_code, data in category_rankings.items %}
-      {% with label=data.0 %}
-      <li class="nav-item" role="presentation">
-        <button
-          class="nav-link {% if active_group == cat_code %}active{% endif %}"
-          id="tab-{{ cat_code }}"
-          data-bs-toggle="tab"
-          data-bs-target="#pane-{{ cat_code }}"
-          type="button"
-          role="tab"
-          aria-controls="pane-{{ cat_code }}"
-          aria-selected="{% if active_group == cat_code %}true{% else %}false{% endif %}"
-        >{{ label }}</button>
-      </li>
-      {% endwith %}
-    {% endfor %}
-  </ul>
-
-  <div class="tab-content mt-3" id="catTabsContent">
-    {% for cat_code, data in category_rankings.items %}
-      {% with label=data.0 athletes_list=data.1 %}
-      <div class="tab-pane fade {% if active_group == cat_code %}show active{% endif %}"
-           id="pane-{{ cat_code }}"
-           role="tabpanel"
-           aria-labelledby="tab-{{ cat_code }}">
-        <div class="card p-3 mb-4">
-          <table class="table table-striped mb-0">
-            <thead>
-              <tr>
-                <th>Место</th>
-                <th>Спортсмен</th>
-                <th>Итого</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for athlete in athletes_list %}
-                <tr>
-                  <td>{{ athlete.place|default:forloop.counter }}</td>
-                  <td>{{ athlete.name }}</td>
-                  <td>{{ athlete.total_points|floatformat:0 }}</td>
-                </tr>
-                <tr class="table-secondary">
-                  <td colspan="3">
-                    <strong>Детализация результатов:</strong>
-                    <table class="table table-sm mt-2 mb-0">
-                      <thead>
-                        <tr>
-                          <th>Дисциплина</th>
-                          <th>Результат</th>
-                          <th>Очки</th>
-                          {% if perms.results.change_disciplineresult or perms.results.delete_disciplineresult %}
-                            <th>Действия</th>
-                          {% endif %}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {% for res in athlete.results.all %}
-                          <tr>
-                            <td>{{ res.discipline.verbose }}</td>
-                            <td>
-                              {% if res.discipline.code == 'treadmill' %}
-                                {{ res.result|floatformat:2 }}
-                              {% else %}
-                                {{ res.result|floatformat:0 }}
-                              {% endif %}
-                            </td>
-                            <td>{{ res.points|floatformat:0 }}</td>
-                            {% if perms.results.change_disciplineresult or perms.results.delete_disciplineresult %}
-                              <td>
-                                {% if perms.results.change_disciplineresult %}
-                                  <a href="{% url 'edit_result' res.id %}?group={{ cat_code }}"
-                                     class="btn btn-sm btn-outline-secondary btn-action">Ред.</a>
-                                {% endif %}
-                                {% if perms.results.delete_disciplineresult %}
-                                  <a href="{% url 'delete_result' res.id %}?group={{ cat_code }}"
-                                     class="btn btn-sm btn-outline-danger btn-action">Удал.</a>
-                                {% endif %}
-                              </td>
-                            {% endif %}
-                          </tr>
-                        {% empty %}
-                          <tr>
-                            <td colspan="{% if perms.results.change_disciplineresult or perms.results.delete_disciplineresult %}4{% else %}3{% endif %}">
-                              Нет результатов
-                            </td>
-                          </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                  </td>
-                </tr>
-              {% empty %}
-                <tr>
-                  <td colspan="3">Нет спортсменов</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+            <button class="btn btn-success">Добавить в событие</button>
+          </form>
         </div>
       </div>
-      {% endwith %}
-    {% endfor %}
-  </div>
+      {% endif %}
+
+      {% if perms.results.add_eventdogresult %}
+      <div class="col-md-6">
+        <div class="card p-4 h-100">
+          <h3 class="mb-4">Добавить результат</h3>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="add_event_dog_result" value="1">
+
+            {% if event_dog_result_form.non_field_errors %}
+              <div class="alert alert-danger">
+                {% for e in event_dog_result_form.non_field_errors %}
+                  <div>{{ e }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            <div class="mb-3">
+              <label for="eventDogSelect" class="form-label">{{ event_dog_result_form.event_dog.label }}:</label>
+              <select id="eventDogSelect"
+                      name="{{ event_dog_result_form.event_dog.html_name }}"
+                      class="form-select">
+                <option value="">---------</option>
+                {% for ed in event_dog_result_form.fields.event_dog.queryset %}
+                  <option value="{{ ed.pk }}"
+                          data-category="{{ ed.growth_category }}"
+                          data-champion="{{ ed.is_champion|yesno:'true,false' }}">
+                    {{ ed.dog.name }} ({{ ed.growth_category }}){% if ed.is_champion %} 🏆{% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+              {% for err in event_dog_result_form.event_dog.errors %}
+                <div class="text-danger">{{ err }}</div>
+              {% endfor %}
+            </div>
+
+            <div class="mb-3">
+              <label for="id_event_dog_discipline" class="form-label">{{ event_dog_result_form.discipline.label }}:</label>
+              <select id="id_event_dog_discipline"
+                      name="{{ event_dog_result_form.discipline.html_name }}"
+                      class="form-select">
+                <option value="">---------</option>
+                {% for disc in event_dog_result_form.fields.discipline.queryset %}
+                  <option value="{{ disc.pk }}" data-code="{{ disc.code }}">
+                    {{ disc.verbose }}
+                  </option>
+                {% endfor %}
+              </select>
+              {% for err in event_dog_result_form.discipline.errors %}
+                <div class="text-danger">{{ err }}</div>
+              {% endfor %}
+            </div>
+
+            <div class="mb-3">
+              <label for="id_event_dog_result" class="form-label">{{ event_dog_result_form.result.label }}:</label>
+              <input type="number"
+                     id="id_event_dog_result"
+                     name="{{ event_dog_result_form.result.html_name }}"
+                     class="form-control"
+                     placeholder="Результат">
+              {% for err in event_dog_result_form.result.errors %}
+                <div class="text-danger">{{ err }}</div>
+              {% endfor %}
+            </div>
+
+            <button class="btn btn-success">Добавить результат</button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  {% endif %}
+
+  {% if category_rankings %}
+    <ul class="nav nav-tabs" id="catTabs" role="tablist">
+      {% for cat_code, data in category_rankings.items %}
+        {% with label=data.0 %}
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link {% if active_group == cat_code %}active{% endif %}"
+            id="tab-{{ cat_code }}"
+            data-bs-toggle="tab"
+            data-bs-target="#pane-{{ cat_code }}"
+            type="button"
+            role="tab"
+            aria-controls="pane-{{ cat_code }}"
+            aria-selected="{% if active_group == cat_code %}true{% else %}false{% endif %}"
+          >{{ label }}</button>
+        </li>
+        {% endwith %}
+      {% endfor %}
+    </ul>
+
+    <div class="tab-content mt-3" id="catTabsContent">
+      {% for cat_code, data in category_rankings.items %}
+        {% with label=data.0 athletes_list=data.1 %}
+        <div class="tab-pane fade {% if active_group == cat_code %}show active{% endif %}"
+             id="pane-{{ cat_code }}"
+             role="tabpanel"
+             aria-labelledby="tab-{{ cat_code }}">
+          <div class="card p-3 mb-4">
+            <table class="table table-striped mb-0">
+              <thead>
+                <tr>
+                  <th>Место</th>
+                  <th>Спортсмен</th>
+                  <th>Итого</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for athlete in athletes_list %}
+                  <tr>
+                    <td>{{ athlete.place|default:forloop.counter }}</td>
+                    <td>{{ athlete.name }}</td>
+                    <td>{{ athlete.total_points|floatformat:0 }}</td>
+                  </tr>
+                  <tr class="table-secondary">
+                    <td colspan="3">
+                      <strong>Детализация результатов:</strong>
+                      <table class="table table-sm mt-2 mb-0">
+                        <thead>
+                          <tr>
+                            <th>Дисциплина</th>
+                            <th>Результат</th>
+                            <th>Очки</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for res in athlete.results.all %}
+                            <tr>
+                              <td>{{ res.discipline.verbose }}</td>
+                              <td>
+                                {% if res.discipline.code == 'treadmill' %}
+                                  {{ res.result|floatformat:2 }}
+                                {% else %}
+                                  {{ res.result|floatformat:0 }}
+                                {% endif %}
+                              </td>
+                              <td>{{ res.points|floatformat:0 }}</td>
+                            </tr>
+                          {% empty %}
+                            <tr>
+                              <td colspan="3">Нет результатов</td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="3">Нет спортсменов</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endwith %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-light mt-4">
+      Для этого события пока нет участников или результатов.
+    </div>
+  {% endif %}
 </div>
 
+{% if not is_legacy_event %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  // Фильтрация спортсменов по категории
-  const select = document.getElementById('athleteSelect');
-  if (select) {
-    const allOpts = Array.from(select.options).slice(1);
-    function filter(cat) {
-      select.innerHTML = '';
-      select.append(new Option('---------', ''));
-      allOpts.forEach(opt => {
-        const oCat = opt.dataset.category;
-        const champ = (opt.dataset.champion === 'true');
-        if (cat === 'C') {
-          if (champ) select.append(opt.cloneNode(true));
-        } else {
-          if (!champ && oCat === cat) select.append(opt.cloneNode(true));
-        }
-      });
-    }
-    const activeBtn = document.querySelector('#catTabs button.active');
-    if (activeBtn) filter(activeBtn.id.replace('tab-', ''));
-    document.querySelectorAll('#catTabs button').forEach(btn => {
-      btn.addEventListener('shown.bs.tab', e => {
-        filter(e.target.id.replace('tab-', ''));
-        select.value = '';
-      });
-    });
-  }
-
-  // Автоматическая установка step/min/max для поля результата
   const stepRules = {
     long_jump:    {step: 10,   min: 0, max: 800},
     wall_jump:    {step: 10,   min: 0, max: 500},
@@ -261,29 +221,73 @@ document.addEventListener('DOMContentLoaded', function() {
     treadmill:    {step: 0.01, min: 0, max: 60}
   };
 
-  const disciplineSelect = document.getElementById('id_discipline');
-  const resultInput = document.getElementById('id_result');
+  function installCategoryFilter(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
 
-  function applyStep() {
-    const selected = disciplineSelect.options[disciplineSelect.selectedIndex];
-    if (!selected) return;
-    const code = selected.dataset.code;
-    if (code && stepRules[code]) {
-      const r = stepRules[code];
-      resultInput.step = r.step;
-      resultInput.min = r.min;
-      resultInput.max = r.max;
-    } else {
-      resultInput.removeAttribute('step');
-      resultInput.removeAttribute('min');
-      resultInput.removeAttribute('max');
+    const allOpts = Array.from(select.options).slice(1);
+
+    function filter(cat) {
+      select.innerHTML = '';
+      select.append(new Option('---------', ''));
+
+      allOpts.forEach(opt => {
+        const oCat = opt.dataset.category;
+        const champ = (opt.dataset.champion === 'true');
+
+        if (cat === 'C') {
+          if (champ) select.append(opt.cloneNode(true));
+        } else {
+          if (!champ && oCat === cat) select.append(opt.cloneNode(true));
+        }
+      });
+    }
+
+    const activeBtn = document.querySelector('#catTabs button.active');
+    if (activeBtn) {
+      filter(activeBtn.id.replace('tab-', ''));
+    }
+
+    document.querySelectorAll('#catTabs button').forEach(btn => {
+      btn.addEventListener('shown.bs.tab', e => {
+        filter(e.target.id.replace('tab-', ''));
+        select.value = '';
+      });
+    });
+  }
+
+  function installStepRules(disciplineId, resultId) {
+    const disciplineSelect = document.getElementById(disciplineId);
+    const resultInput = document.getElementById(resultId);
+
+    function applyStep() {
+      if (!disciplineSelect || !resultInput) return;
+
+      const selected = disciplineSelect.options[disciplineSelect.selectedIndex];
+      if (!selected) return;
+
+      const code = selected.dataset.code;
+      if (code && stepRules[code]) {
+        const r = stepRules[code];
+        resultInput.step = r.step;
+        resultInput.min = r.min;
+        resultInput.max = r.max;
+      } else {
+        resultInput.removeAttribute('step');
+        resultInput.removeAttribute('min');
+        resultInput.removeAttribute('max');
+      }
+    }
+
+    if (disciplineSelect && resultInput) {
+      applyStep();
+      disciplineSelect.addEventListener('change', applyStep);
     }
   }
 
-  if (disciplineSelect && resultInput) {
-    applyStep();
-    disciplineSelect.addEventListener('change', applyStep);
-  }
+  installCategoryFilter('eventDogSelect');
+  installStepRules('id_event_dog_discipline', 'id_event_dog_result');
 });
 </script>
+{% endif %}
 {% endblock %}

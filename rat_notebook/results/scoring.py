@@ -5,16 +5,16 @@ from typing import Dict, Iterable, List, Optional, Tuple
 # Нормативы по ростовым категориям для чемпионов
 # treadmill — в секундах (например, 25.20 = 25.20 сек)
 QUALIFYING_NORMS = {
-    'XS':      {'wall_jump': 280, 'high_jump': 180, 'long_jump': 400, 'barrier_jump':  90, 'a_frame': 28, 'treadmill': 48.00},
-    'S':       {'wall_jump': 310, 'high_jump': 195, 'long_jump': 490, 'barrier_jump': 105, 'a_frame': 30, 'treadmill': 46.00},
-    'M':       {'wall_jump': 330, 'high_jump': 205, 'long_jump': 510, 'barrier_jump': 115, 'a_frame': 32, 'treadmill': 44.00},
-    'L':       {'wall_jump': 350, 'high_jump': 215, 'long_jump': 530, 'barrier_jump': 125, 'a_frame': 34, 'treadmill': 42.00},
-    'XL':      {'wall_jump': 370, 'high_jump': 225, 'long_jump': 550, 'barrier_jump': 125, 'a_frame': 34, 'treadmill': 42.00},
-    'АСТ_S':   {'wall_jump': 310, 'high_jump': 190, 'long_jump': 450, 'barrier_jump': 100, 'a_frame': 32, 'treadmill': 44.00},
-    'АСТ_M':   {'wall_jump': 320, 'high_jump': 200, 'long_jump': 470, 'barrier_jump': 105, 'a_frame': 32, 'treadmill': 44.00},
-    'АСТ_L':   {'wall_jump': 330, 'high_jump': 210, 'long_jump': 490, 'barrier_jump': 110, 'a_frame': 32, 'treadmill': 44.00},
-    'СБТ':     {'wall_jump': 270, 'high_jump': 165, 'long_jump': 370, 'barrier_jump':  85, 'a_frame': 28, 'treadmill': 50.00},
-    'Малинуа': {'wall_jump': 370, 'high_jump': 230, 'long_jump': 530, 'barrier_jump': 130, 'a_frame': 36, 'treadmill': 42.00},
+    'XS':      {'wall_jump': 290, 'high_jump': 185, 'long_jump': 400, 'barrier_jump':  95, 'a_frame': 28, 'treadmill': 46.00},
+    'S':       {'wall_jump': 310, 'high_jump': 195, 'long_jump': 490, 'barrier_jump': 105, 'a_frame': 30, 'treadmill': 42.00},
+    'M':       {'wall_jump': 330, 'high_jump': 205, 'long_jump': 510, 'barrier_jump': 115, 'a_frame': 32, 'treadmill': 40.00},
+    'L':       {'wall_jump': 350, 'high_jump': 215, 'long_jump': 530, 'barrier_jump': 125, 'a_frame': 34, 'treadmill': 38.00},
+    'XL':      {'wall_jump': 370, 'high_jump': 225, 'long_jump': 550, 'barrier_jump': 125, 'a_frame': 34, 'treadmill': 38.00},
+    'АСТ_S':   {'wall_jump': 300, 'high_jump': 190, 'long_jump': 450, 'barrier_jump': 95, 'a_frame': 30, 'treadmill': 44.00},
+    'АСТ_M':   {'wall_jump': 320, 'high_jump': 195, 'long_jump': 470, 'barrier_jump': 100, 'a_frame': 32, 'treadmill': 42.00},
+    'АСТ_L':   {'wall_jump': 330, 'high_jump': 205, 'long_jump': 490, 'barrier_jump': 105, 'a_frame': 32, 'treadmill': 40.00},
+    'СБТ':     {'wall_jump': 270, 'high_jump': 165, 'long_jump': 370, 'barrier_jump': 90, 'a_frame': 28, 'treadmill': 48.00},
+    'Малинуа': {'wall_jump': 380, 'high_jump': 230, 'long_jump': 560, 'barrier_jump': 130, 'a_frame': 36, 'treadmill': 38.00},
 }
 
 # Порог/шаги прироста «от нормы» для чемпионов
@@ -145,6 +145,61 @@ def assign_growth_scores(event):
                 i = j
 
 
+def assign_event_dog_growth_scores(event):
+    """
+    Начисление очков для НЕ чемпионов из новой схемы:
+    Dog -> EventDog -> EventDogResult
+    """
+    from .models import EventDogResult
+
+    for discipline in event.disciplines.all():
+        is_time = (discipline.code == 'treadmill')
+
+        for group in GROWTH_GROUPS:
+            qs = EventDogResult.objects.filter(
+                event_dog__event=event,
+                event_dog__is_champion=False,
+                event_dog__growth_category=group,
+                discipline=discipline
+            ).select_related('event_dog', 'event_dog__dog')
+
+            items = list(qs)
+            if not items:
+                continue
+
+            if is_time:
+                def sort_key(r):
+                    v = r.result or 0
+                    return (v <= 0, v)
+                sorted_results = sorted(items, key=sort_key)
+            else:
+                sorted_results = sorted(items, key=lambda r: (r.result or 0), reverse=True)
+
+            rank = 1
+            i = 0
+            n = len(sorted_results)
+            while i < n:
+                base_val = (sorted_results[i].result or 0)
+                same_bucket = [sorted_results[i]]
+                j = i + 1
+                while j < n and (sorted_results[j].result or 0) == base_val:
+                    same_bucket.append(sorted_results[j])
+                    j += 1
+
+                if base_val == 0:
+                    pts = -25
+                else:
+                    pts = RANK_POINTS[rank - 1] if rank <= len(RANK_POINTS) else 0
+
+                for r in same_bucket:
+                    if r.points != pts:
+                        r.points = pts
+                        r.save(update_fields=['points'])
+
+                rank += 1
+                i = j
+
+
 def calculate_points(category: str, discipline: str, result: Optional[float]) -> int:
     """
     Обёртка: чемпионы получают очки по нормативам,
@@ -233,6 +288,53 @@ def compute_final_places(
                 "total_points": total,
                 "place": place,
                 "results": a.results.all(),
+            })
+        out[g] = group_rows
+
+    return out
+
+
+def compute_event_dog_final_places(
+    event,
+    groups: Optional[Iterable[str]] = None,
+    include_champions: bool = False,
+) -> Dict[str, List[dict]]:
+    """
+    Итоговые места по новой схеме:
+    Dog -> EventDog -> EventDogResult
+    """
+    from .models import EventDog
+
+    group_codes = list(groups) if groups is not None else list(GROWTH_GROUPS)
+    out: Dict[str, List[dict]] = {}
+
+    for g in group_codes:
+        qs = EventDog.objects.filter(
+            event=event,
+            growth_category=g,
+        )
+
+        if not include_champions:
+            qs = qs.filter(is_champion=False)
+
+        event_dogs = list(qs)
+
+        pairs: List[Tuple[object, int]] = []
+        for ed in event_dogs:
+            total = sum(int(r.points or 0) for r in ed.results.all())
+            pairs.append((ed, total))
+
+        pairs.sort(key=lambda p: (p[1], p[0].dog.name), reverse=True)
+
+        ranked = _competition_rank(pairs)
+
+        group_rows: List[dict] = []
+        for ed, total, place in ranked:
+            group_rows.append({
+                "athlete": ed,   # специально оставляем ключ athlete, чтобы шаблон не ломать
+                "total_points": total,
+                "place": place,
+                "results": ed.results.all(),
             })
         out[g] = group_rows
 

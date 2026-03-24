@@ -13,6 +13,11 @@ class Event(models.Model):
     name = models.CharField("Название события", max_length=200)
     date = models.DateField("Дата события")
     disciplines = models.ManyToManyField("DisciplineType", verbose_name="Дисциплины")
+    is_legacy = models.BooleanField(
+        "Архивный ивент (старая схема)",
+        default=False,
+        help_text="Старые ивенты работают через Athlete, новые — через Dog/EventDog",
+    )
 
     class Meta:
         verbose_name = "Событие"
@@ -40,6 +45,117 @@ class DisciplineType(models.Model):
 
     def __str__(self):
         return self.verbose
+
+
+class Dog(models.Model):
+    name = models.CharField("Имя собаки", max_length=100, unique=True)
+    growth_category = models.CharField(
+        "Ростовая категория",
+        max_length=12,
+        choices=GROWTH_CHOICES,
+        default="XS",
+        blank=True,
+        null=True,
+    )
+    is_champion = models.BooleanField("Чемпион", default=False)
+
+    class Meta:
+        verbose_name = "Собака"
+        verbose_name_plural = "Собаки"
+        ordering = ["name"]
+
+    def __str__(self):
+        champ = " 🏆" if self.is_champion else ""
+        return f"{self.name} ({self.growth_category}){champ}"
+
+
+class EventDog(models.Model):
+    event = models.ForeignKey(
+        Event,
+        on_delete=models.CASCADE,
+        related_name="event_dogs",
+        verbose_name="Событие",
+    )
+    dog = models.ForeignKey(
+        Dog,
+        on_delete=models.PROTECT,
+        related_name="event_entries",
+        verbose_name="Собака",
+    )
+
+    growth_category = models.CharField(
+        "Ростовая категория на момент участия",
+        max_length=12,
+        choices=GROWTH_CHOICES,
+        default="XS",
+        blank=True,
+        null=True,
+    )
+    is_champion = models.BooleanField(
+        "Чемпион на момент участия",
+        default=False,
+    )
+
+    class Meta:
+        verbose_name = "Участник события"
+        verbose_name_plural = "Участники события"
+        unique_together = ("event", "dog")
+        ordering = ["event", "dog__name"]
+
+    def __str__(self):
+        champ = " 🏆" if self.is_champion else ""
+        return f"{self.dog.name} ({self.growth_category}){champ} — {self.event.name}"
+
+    @property
+    def name(self):
+        return self.dog.name
+
+    @property
+    def total_points(self):
+        return sum(r.points for r in self.results.all())
+
+    def save(self, *args, **kwargs):
+        if self.pk is None:
+            if not self.growth_category:
+                self.growth_category = self.dog.growth_category
+            self.is_champion = self.dog.is_champion
+        super().save(*args, **kwargs)
+
+
+class EventDogResult(models.Model):
+    event_dog = models.ForeignKey(
+        EventDog,
+        on_delete=models.CASCADE,
+        related_name="results",
+        verbose_name="Участник события",
+    )
+    discipline = models.ForeignKey(
+        DisciplineType,
+        on_delete=models.PROTECT,
+        verbose_name="Дисциплина",
+    )
+    result = models.FloatField("Результат", null=True, blank=True)
+    points = models.FloatField("Очки", editable=False, default=0)
+
+    class Meta:
+        verbose_name = "Результат участника события"
+        verbose_name_plural = "Результаты участников события"
+        unique_together = ("event_dog", "discipline")
+
+    def save(self, *args, **kwargs):
+        if self.event_dog.is_champion:
+            self.points = calculate_champion_points(
+                self.event_dog.growth_category,
+                self.discipline.code,
+                self.result
+            )
+        else:
+            if self.pk is None:
+                self.points = 0
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.event_dog.dog.name}: {self.discipline.verbose} — {self.points} очков"
 
 
 class Athlete(models.Model):
