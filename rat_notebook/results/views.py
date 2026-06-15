@@ -9,6 +9,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.db import transaction
 from django.utils.dateparse import parse_date
+from django.utils.http import url_has_allowed_host_and_scheme
 from .models import (
     Event, DisciplineResult, PuppyTrainingSession, PuppyTrainingExercise,
     Exercise, Puppy, Dog, EventDog, EventDogResult, GROWTH_CHOICES, QualificationNormSet, QualificationNorm
@@ -423,6 +424,7 @@ def edit_qualification_norm(request, norm_id):
 
 
 def login_view(request):
+    next_url = request.POST.get("next") or request.GET.get("next")
     if request.method == 'POST':
         form = LoginForm(request.POST)
         if form.is_valid():
@@ -431,12 +433,18 @@ def login_view(request):
             user = authenticate(request, username=username, password=password)
             if user is not None:
                 login(request, user)
+                if next_url and url_has_allowed_host_and_scheme(
+                    next_url,
+                    allowed_hosts={request.get_host()},
+                    require_https=request.is_secure(),
+                ):
+                    return redirect(next_url)
                 return redirect('event_list')
             else:
                 form.add_error(None, "Неверное имя пользователя или пароль.")
     else:
         form = LoginForm()
-    return render(request, 'auth/login.html', {'form': form})
+    return render(request, 'auth/login.html', {'form': form, 'next': next_url})
 
 
 def custom_logout(request):
@@ -527,6 +535,7 @@ def puppy_edit(request, puppy_id: int):
     return render(request, "results/puppy_form.html", {"form": form, "title": "Редактировать щенка"})
 
 
+@login_required
 def puppy_diary(request, puppy_id: int):
     puppy = get_puppy_for_user_or_404(request, puppy_id)  # ✅ было get_object_or_404
     selected_date = parse_date(request.GET.get("date") or "") or dt_date.today()
@@ -565,6 +574,7 @@ def puppy_diary(request, puppy_id: int):
     })
 
 
+@login_required
 def puppy_session_edit(request, puppy_id: int, pk: int):
     puppy = get_puppy_for_user_or_404(request, puppy_id)  # ✅ было get_object_or_404
     session = get_object_or_404(PuppyTrainingSession, pk=pk, puppy=puppy)
@@ -589,6 +599,7 @@ def puppy_session_edit(request, puppy_id: int, pk: int):
     })
 
 
+@login_required
 def puppy_session_delete(request, puppy_id: int, pk: int):
     puppy = get_puppy_for_user_or_404(request, puppy_id)  # ✅ было get_object_or_404
     session = get_object_or_404(PuppyTrainingSession, pk=pk, puppy=puppy)
